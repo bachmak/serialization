@@ -1,12 +1,13 @@
 #include <ostream>
 #include <iostream>
 
-class Serializer;
+class OutputSerializer;
+class InputSerializer;
 
 class Access
 {
 public:
-    template <typename T>
+    template <typename Serializer, typename T>
     void Serialize(Serializer &s, T &t)
     {
         t.serialize(s);
@@ -19,21 +20,39 @@ class OutputArchive
 {
 public:
     template <typename T>
-    OutputArchive& operator<<(T &t)
+    OutputArchive &operator<<(T &t)
     {
-        Serializer s();
+        OutputSerializer s(os);
         Access a;
         a.Serialize(s, t);
         return *this;
     }
 
-    OutputArchive(std::ostream& os = std::cout) : os(os) {}
+    OutputArchive(std::ostream &os = std::cout) : os(os) {}
 
 private:
-    std::ostream& os;
+    std::ostream &os;
 };
 
-class Serializer
+class InputArchive
+{
+public:
+    template <typename T>
+    InputArchive &operator>>(T &t)
+    {
+        InputSerializer s(is);
+        Access a;
+        a.Serialize(s, t);
+        return *this;
+    }
+
+    InputArchive(std::istream &is = std::cin) : is(is) {}
+
+private:
+    std::istream &is;
+};
+
+class OutputSerializer
 {
 public:
     template <typename T>
@@ -42,8 +61,23 @@ public:
         return os << t << ' ';
     }
 
-    Serializer(std::ostream& os) : os(os) {}
+    OutputSerializer(std::ostream &os) : os(os) {}
 
 private:
-    std::ostream& os;
+    std::ostream &os;
+};
+
+class InputSerializer
+{
+public:
+    template <typename T>
+    std::istream &operator&(T &t)
+    {
+        return is >> t;
+    }
+
+    InputSerializer(std::istream &is) : is(is) {}
+
+private:
+    std::istream &is;
 };

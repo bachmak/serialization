@@ -5,6 +5,7 @@ class Simple
 {
 private:
     friend class Access;
+    
     template <typename Serializer>
     void serialize(Serializer& s)
     {
@@ -26,6 +27,7 @@ int main(int argc, char const *argv[])
     OutputArchive oa(std::cout);
     Simple simple = Simple();
     oa << simple;
-    
+    InputArchive ia(std::cin);
+    ia >> simple;
     return 0;
 }
