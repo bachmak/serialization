@@ -17,12 +17,33 @@ struct Access
     struct has_serialize
     {
     private:
-        static int detect(...);
+        static std::false_type detect(...);
 
         template <typename U>
-        decltype(std::declval<U>().serialize(OutputSerializer())) detect(const U &);
+        static decltype(std::declval<U>().serialize(OutputSerializer())) detect(const U &);
 
     public:
-        static constexpr bool value = std::is_same<void, decltype(detect(std::declval<T>()))>::value;
+        static constexpr bool value = decltype(detect(std::declval<T>()))::value;
+    };
+
+    struct Serializable
+    {
+    };
+
+    struct Iterable
+    {
+        template <typename T>
+        static decltype(
+            std::begin(std::declval<T &>()) != std::end(std::declval<T &>()),
+            ++std::declval<decltype(std::begin(std::declval<T &>())) &>(),
+            *std::begin(std::declval<T &>()),
+            std::true_type{})
+        is_iterable(int);
+
+        template <typename T>
+        static std::false_type is_iterable(...);
     };
 };
+
+template <typename T>
+using is_iterable = decltype(Access::Iterable::is_iterable<T>(0));
