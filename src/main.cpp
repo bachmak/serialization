@@ -13,6 +13,9 @@ struct SimpleStruct
         s &d;
     }
 
+    SimpleStruct(int a = 1, double b = 1.0, float c = 1.0, char d = 'b') 
+        : a(a), b(b), c(c), d(d) {}
+
     int a = 1;
     double b = 1.0;
     float c = 1.0;
@@ -51,7 +54,7 @@ int main(int argc, char const *argv[])
     {
         std::ofstream output("data.txt", std::ios_base::binary);
         OutputArchive oa(output);
-        SimpleClass simple_1(23, 2.5, 3.14, 'd', {24, 2.6, 3.15, 'e'});
+        SimpleClass simple_1(23, 2.5, 3.14, 'd', SimpleStruct(24, 2.6, 3.15, 'e'));
         oa << simple_1;
     }
 
