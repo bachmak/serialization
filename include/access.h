@@ -1,10 +1,3 @@
-#pragma once
-
-#include <utility>
-#include <type_traits>
-
-class OutputSerializer;
-
 struct Access
 {
     template <typename Serializer, typename T>
@@ -12,23 +5,6 @@ struct Access
     {
         t.serialize(s);
     }
-
-    template <typename T>
-    struct has_serialize
-    {
-    private:
-        static std::false_type detect(...);
-
-        template <typename U>
-        static decltype(std::declval<U>().serialize(OutputSerializer())) detect(const U &);
-
-    public:
-        static constexpr bool value = decltype(detect(std::declval<T>()))::value;
-    };
-
-    struct Serializable
-    {
-    };
 
     struct Iterable
     {
@@ -47,3 +23,6 @@ struct Access
 
 template <typename T>
 using is_iterable = decltype(Access::Iterable::is_iterable<T>(0));
+
+// template <typename T>
+// using is_serializable = decltype(Access::Serializable::is_serializable<T>(0));

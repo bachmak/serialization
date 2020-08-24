@@ -1,33 +1,35 @@
 #pragma once
 
-#include "access.h"
-
 #include <iostream>
 #include <stdexcept>
-#include <type_traits>
 
 class OutputSerializer
 {
 public:
     template <typename T>
-    void operator&(T &t)
+    std::ostream &operator&(T &t)
     {
-        serialize(t);
+        return os.write(reinterpret_cast<char*>(&t), sizeof(t));
     }
 
-    OutputSerializer(std::ostream &os = std::cout) : os(os) {}
+    inline OutputSerializer(std::ostream &os) : os(os) {}
 
 private:
     std::ostream &os;
 
-    template <typename T, typename std::enable_if<Access::has_serialize<T>::value>::type>
-    void serialize(T& t)
+    template <typename T>
+    typename std::enable_if<is_iterable<T>::value>::type
+    serialize(T& t)
     {
-        Access::serialize(*this, t);
+        for (auto it = begin(t); it != end(t); ++it)
+        {
+            serialize(*it);
+        }
     }
 
     template <typename T>
-    void serialize(T& t)
+    typename std::enable_if<!is_iterable<T>::value>::type
+    serialize(T& t)
     {
         os.write(reinterpret_cast<char*>(&t), sizeof(t));
     }
@@ -37,24 +39,29 @@ class InputSerializer
 {
 public:
     template <typename T>
-    void operator&(T &t)
+    std::istream &operator&(T &t)
     {
-        serialize(t);
+        return is.read(reinterpret_cast<char*>(&t), sizeof(t));
     }
 
-    InputSerializer(std::istream &is = std::cin) : is(is) {}
+    inline InputSerializer(std::istream &is) : is(is) {}
 
 private:
     std::istream &is;
 
-    template <typename T, typename std::enable_if<Access::has_serialize<T>::value>::type>
-    void serialize(T& t)
+    template <typename T>
+    typename std::enable_if<is_iterable<T>::value>::type
+    serialize(T& t)
     {
-        Access::serialize(*this, t);
+        for (auto it = begin(t); it != end(t); ++it)
+        {
+            serialize(*it);
+        }
     }
 
     template <typename T>
-    void serialize(T& t)
+    typename std::enable_if<!is_iterable<T>::value>::type
+    serialize(T& t)
     {
         is.read(reinterpret_cast<char*>(&t), sizeof(t));
     }

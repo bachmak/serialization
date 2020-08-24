@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include "serialization.h"
 
 struct SimpleStruct
@@ -25,8 +26,8 @@ struct SimpleStruct
 class SimpleClass
 {
 public:
-    explicit SimpleClass(int a, double b, float c, char d, SimpleStruct ss)
-        : a(a), b(b), c(c), d(d), e(ss) {}
+    explicit SimpleClass(int a, double b, float c, char d, SimpleStruct e, std::vector<int> f)
+        : a(a), b(b), c(c), d(d), e(e), f(f) {}
     explicit SimpleClass() = default;
 
 private:
@@ -40,6 +41,7 @@ private:
         s &c;
         s &d;
         s &e;
+        s &f;
     }
 
     int a = 0;
@@ -47,6 +49,7 @@ private:
     float c = 0.0;
     char d = 'a';
     SimpleStruct e;
+    std::vector<int> f = {0, 0, 0, 0};
 };
 
 int main(int argc, char const *argv[])
@@ -54,7 +57,7 @@ int main(int argc, char const *argv[])
     {
         std::ofstream output("data.txt", std::ios_base::binary);
         OutputArchive oa(output);
-        SimpleClass simple_1(23, 2.5, 3.14, 'd', SimpleStruct(24, 2.6, 3.15, 'e'));
+        SimpleClass simple_1(23, 2.5, 3.14, 'd', SimpleStruct(24, 2.6, 3.15, 'e'), std::vector<int>({1, 2, 3, 4}));
         oa << simple_1;
     }
 
@@ -64,5 +67,6 @@ int main(int argc, char const *argv[])
         SimpleClass simple_2;
         ia >> simple_2;
     }
+
     return 0;
 }

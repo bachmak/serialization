@@ -1,5 +1,6 @@
 #pragma once
 
+#include "access.h"
 #include "serializer.h"
 
 #include <iostream>
@@ -8,13 +9,14 @@ class OutputArchive
 {
 public:
     template <typename T>
-    void operator<<(T &t)
+    OutputArchive& operator<<(T &t)
     {
         OutputSerializer s(os);
         Access::serialize(s, t);
+        return *this;
     }
 
-    OutputArchive(std::ostream &os) : os(os) {}
+    inline OutputArchive(std::ostream &os) : os(os) {}
 
 private:
     std::ostream &os;
@@ -24,13 +26,14 @@ class InputArchive
 {
 public:
     template <typename T>
-    void operator>>(T &t)
+    InputArchive &operator>>(T &t)
     {
         InputSerializer s(is);
         Access::serialize(s, t);
+        return *this;
     }
 
-    InputArchive(std::istream &is) : is(is) {}
+    inline InputArchive(std::istream &is) : is(is) {}
 
 private:
     std::istream &is;
