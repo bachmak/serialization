@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "traits.h"
+#include "access.h"
 
 struct Access;
 
@@ -12,7 +13,7 @@ class Serializer
 {
 public:
     static_assert(is_ostream<Stream>::value ||
-                  is_istream<Stream>::value,
+                      is_istream<Stream>::value,
                   "template argument must be a stream");
     template <typename T>
     void operator&(T &t)
@@ -43,14 +44,18 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<!is_iterable<T>::value && is_ostream<Stream>::value>::type
+    typename std::enable_if<!is_serializable<T>::value &&
+                            !is_iterable<T>::value &&
+                            is_ostream<Stream>::value>::type
     serialize(T &t)
     {
         stream.write(reinterpret_cast<char *>(&t), sizeof(t));
     }
 
     template <typename T>
-    typename std::enable_if<!is_iterable<T>::value && is_istream<Stream>::value>::type
+    typename std::enable_if<!is_serializable<T>::value &&
+                            !is_iterable<T>::value &&
+                            is_istream<Stream>::value>::type
     serialize(T &t)
     {
         stream.read(reinterpret_cast<char *>(&t), sizeof(t));
