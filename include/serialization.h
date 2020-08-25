@@ -11,7 +11,7 @@ public:
     template <typename T>
     void operator<<(T &t)
     {
-        OutputSerializer s(os);
+        Serializer<std::ostream> s(os);
         Access::serialize(s, t);
     }
 
@@ -27,7 +27,7 @@ public:
     template <typename T>
     void operator>>(T &t)
     {
-        InputSerializer s(is);
+        Serializer<std::istream> s(is);
         Access::serialize(s, t);
     }
 

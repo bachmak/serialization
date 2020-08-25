@@ -1,12 +1,16 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <sstream>
+#include <string>
 #include "serialization.h"
+
+using namespace std;
 
 struct SimpleStruct
 {
-    template <typename Serializer>
-    void serialize(Serializer &s)
+    template <typename Stream>
+    void serialize(Serializer<Stream> s)
     {
         s &a;
         s &b;
@@ -33,8 +37,8 @@ public:
 private:
     friend struct Access;
 
-    template <typename Serializer>
-    void serialize(Serializer &s)
+    template <typename Stream>
+    void serialize(Serializer<Stream> s)
     {
         s &a;
         s &b;
@@ -49,20 +53,20 @@ private:
     float c = 0.0;
     char d = 'a';
     SimpleStruct e;
-    std::vector<int> f = {0, 0, 0, 0};
+    vector<int> f = {0, 0, 0, 0};
 };
 
 int main(int argc, char const *argv[])
 {
     {
-        std::ofstream output("data.txt", std::ios_base::binary);
+        ofstream output("data.txt", ios_base::binary);
         OutputArchive oa(output);
-        SimpleClass simple_1(23, 2.5, 3.14, 'd', SimpleStruct(24, 2.6, 3.15, 'e'), std::vector<int>({1, 2, 3, 4}));
+        SimpleClass simple_1(23, 2.5, 3.14, 'd', SimpleStruct(24, 2.6, 3.15, 'e'), vector<int>({1, 2, 3, 4}));
         oa << simple_1;
     }
 
     {
-        std::ifstream input("data.txt", std::ios_base::binary);
+        ifstream input("data.txt", ios_base::binary);
         InputArchive ia(input);
         SimpleClass simple_2;
         ia >> simple_2;

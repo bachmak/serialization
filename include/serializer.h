@@ -3,66 +3,56 @@
 #include <iostream>
 #include <stdexcept>
 
-class OutputSerializer
+#include "traits.h"
+
+struct Access;
+
+template <typename Stream>
+class Serializer
 {
 public:
+    static_assert(is_ostream<Stream>::value ||
+                  is_istream<Stream>::value,
+                  "template argument must be a stream");
     template <typename T>
-    std::ostream &operator&(T &t)
+    void operator&(T &t)
     {
-        return os.write(reinterpret_cast<char*>(&t), sizeof(t));
+        serialize(t);
     }
 
-    inline OutputSerializer(std::ostream &os) : os(os) {}
+    Serializer(Stream &stream = std::cout) : stream(stream) {}
 
 private:
-    std::ostream &os;
+    Stream &stream;
+
+    template <typename T>
+    typename std::enable_if<is_serializable<T>::value>::type
+    serialize(T &t)
+    {
+        Access::serialize(*this, t);
+    }
 
     template <typename T>
     typename std::enable_if<is_iterable<T>::value>::type
-    serialize(T& t)
+    serialize(T &t)
     {
-        for (auto it = begin(t); it != end(t); ++it)
+        for (auto iter = begin(t); iter != end(t); ++iter)
         {
-            serialize(*it);
+            serialize(*iter);
         }
     }
 
     template <typename T>
-    typename std::enable_if<!is_iterable<T>::value>::type
-    serialize(T& t)
+    typename std::enable_if<!is_iterable<T>::value && is_ostream<Stream>::value>::type
+    serialize(T &t)
     {
-        os.write(reinterpret_cast<char*>(&t), sizeof(t));
-    }
-};
-
-class InputSerializer
-{
-public:
-    template <typename T>
-    std::istream &operator&(T &t)
-    {
-        return is.read(reinterpret_cast<char*>(&t), sizeof(t));
-    }
-
-    inline InputSerializer(std::istream &is) : is(is) {}
-
-private:
-    std::istream &is;
-
-    template <typename T>
-    typename std::enable_if<is_iterable<T>::value>::type
-    serialize(T& t)
-    {
-        for (auto it = begin(t); it != end(t); ++it)
-        {
-            serialize(*it);
-        }
+        stream.write(reinterpret_cast<char *>(&t), sizeof(t));
     }
 
     template <typename T>
-    typename std::enable_if<!is_iterable<T>::value>::type
-    serialize(T& t)
+    typename std::enable_if<!is_iterable<T>::value && is_istream<Stream>::value>::type
+    serialize(T &t)
     {
-        is.read(reinterpret_cast<char*>(&t), sizeof(t));
+        stream.read(reinterpret_cast<char *>(&t), sizeof(t));
     }
 };

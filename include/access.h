@@ -1,28 +1,28 @@
+#pragma once
+
+template <typename Stream>
+class Serializer;
+
 struct Access
 {
-    template <typename Serializer, typename T>
-    static void serialize(Serializer &s, T &t)
+    template <typename Stream, typename T>
+    static void serialize(Serializer<Stream> s, T &t)
     {
         t.serialize(s);
     }
 
-    struct Iterable
+    struct Serializable
     {
         template <typename T>
         static decltype(
-            std::begin(std::declval<T &>()) != std::end(std::declval<T &>()),
-            ++std::declval<decltype(std::begin(std::declval<T &>())) &>(),
-            *std::begin(std::declval<T &>()),
+            std::declval<T &>().serialize(Serializer<std::ostream>()),
             std::true_type{})
-        is_iterable(int);
+        is_serializable(int);
 
         template <typename T>
-        static std::false_type is_iterable(...);
+        static std::false_type is_serializable(...);
     };
 };
 
 template <typename T>
-using is_iterable = decltype(Access::Iterable::is_iterable<T>(0));
-
-// template <typename T>
-// using is_serializable = decltype(Access::Serializable::is_serializable<T>(0));
+using is_serializable = decltype(Access::Serializable::is_serializable<T>(0));
