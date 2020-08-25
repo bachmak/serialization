@@ -5,34 +5,32 @@
 
 #include <iostream>
 
-class OutputArchive
+template <typename Stream>
+class Archive
 {
 public:
-    template <typename T>
-    void operator<<(T &t)
+    static_assert(is_ostream<Stream>::value ||
+                  is_istream<Stream>::value,
+                  "template argument must be a stream");
+
+    Archive(Stream &stream = std::cout) : stream(stream) {}
+
+    template <typename T, bool Enable=true>
+    typename std::enable_if<is_ostream<Stream>::value && Enable>::type
+    operator<<(T &t)
     {
-        Serializer<std::ostream> s(os);
+        Serializer<std::ostream> s(stream);
         Access::serialize(s, t);
     }
 
-    OutputArchive(std::ostream &os) : os(os) {}
-
-private:
-    std::ostream &os;
-};
-
-class InputArchive
-{
-public:
-    template <typename T>
-    void operator>>(T &t)
+    template <typename T, bool Enable=true>
+    typename std::enable_if<is_istream<Stream>::value && Enable>::type
+    operator>>(T &t)
     {
-        Serializer<std::istream> s(is);
+        Serializer<std::istream> s(stream);
         Access::serialize(s, t);
     }
 
-    InputArchive(std::istream &is) : is(is) {}
-
 private:
-    std::istream &is;
+    Stream &stream;
 };
