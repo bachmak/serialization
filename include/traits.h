@@ -1,5 +1,11 @@
-#pragma once 
+#pragma once
+
 #include <type_traits>
+#include <vector>
+#include <string>
+#include <deque>
+#include <list>
+#include <forward_list>
 
 struct Iterable
 {
@@ -23,3 +29,33 @@ using is_ostream = std::is_base_of<std::ostream, T>;
 
 template <typename T>
 using is_istream = std::is_base_of<std::istream, T>;
+
+template <typename>
+struct is_std_vector : std::false_type {};
+
+template <typename T>
+struct is_std_vector<std::vector<T>> : std::true_type {};
+
+template <typename>
+struct is_std_string : std::false_type {};
+
+template <typename T>
+struct is_std_string<std::basic_string<T>> : std::true_type {};
+
+template <typename>
+struct is_std_deque : std::false_type {};
+
+template <typename T>
+struct is_std_deque<std::deque<T>> : std::true_type {};
+
+template <typename>
+struct is_std_list : std::false_type {};
+
+template <typename T>
+struct is_std_list<std::list<T>> : std::true_type {};
+
+template <typename>
+struct is_std_forward_list : std::false_type {};
+
+template <typename T>
+struct is_std_forward_list<std::forward_list<T>> : std::true_type {};
