@@ -1,7 +1,7 @@
 #pragma once
 
-#include "access.h"
 #include "serializer.h"
+#include "traits.h"
 
 #include <iostream>
 
@@ -13,14 +13,22 @@ public:
                   is_istream<Stream>::value,
                   "template argument must be a stream");
 
-    Archive(Stream &stream = std::cout) : stream(stream) {}
+    Archive(Stream &stream) : stream(stream) {}
 
     template <typename T, bool Enable=true>
     typename std::enable_if<is_ostream<Stream>::value && Enable>::type
     operator<<(T &t)
     {
         Serializer<std::ostream> s(stream);
-        Access::serialize(s, t);
+        s & t;
+    }
+
+    template <typename T, bool Enable=true>
+    typename std::enable_if<is_ostream<Stream>::value && Enable>::type
+    operator<<(T &&t)
+    {
+        Serializer<std::ostream> s(stream);
+        s & t;
     }
 
     template <typename T, bool Enable=true>
@@ -28,7 +36,7 @@ public:
     operator>>(T &t)
     {
         Serializer<std::istream> s(stream);
-        Access::serialize(s, t);
+        s & t;
     }
 
 private:
