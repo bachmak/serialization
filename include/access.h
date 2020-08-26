@@ -18,7 +18,7 @@ struct Access
     {
         template <typename T>
         static decltype(
-            std::declval<T &>().serialize(Serializer<std::ostream>()),
+            std::declval<T &>().serialize(Serializer<std::ostream>(std::cout)),
             std::true_type{})
         is_serializable(int);
 
