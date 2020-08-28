@@ -39,6 +39,20 @@ public:
         s & t;
     }
 
+    template <typename T, bool Enable=true>
+    typename std::enable_if<is_ostream<Stream>::value && Enable>::type
+    operator&(T& t)
+    {
+        *this << t;
+    }
+
+    template <typename T, bool Enable=true>
+    typename std::enable_if<is_istream<Stream>::value && Enable>::type
+    operator&(T& t)
+    {
+        *this >> t;
+    }
+
 private:
     Stream &stream;
 };
