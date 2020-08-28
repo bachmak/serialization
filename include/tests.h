@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <string>
 #include <list>
@@ -103,12 +104,12 @@ private:
     }
 };
 
-void TestBasicTypeSerialization();
+void TestBasicTypes();
 
-void TestPointersSerialization();
+void TestPointers();
 
-void TestReferencesSerialization();
+void TestReferences();
 
-void TestSequenceContainersSerialization();
+void TestSequenceContainers();
 
 void TestAll();

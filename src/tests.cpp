@@ -10,10 +10,10 @@ void TestAll()
 {
     TestRunner tr;
     RUN_TEST(tr, PodClass::test);
-    RUN_TEST(tr, TestBasicTypeSerialization);
-    RUN_TEST(tr, TestPointersSerialization);
-    RUN_TEST(tr, TestReferencesSerialization);
-    RUN_TEST(tr, TestSequenceContainersSerialization);
+    RUN_TEST(tr, TestBasicTypes);
+    RUN_TEST(tr, TestPointers);
+    RUN_TEST(tr, TestReferences);
+    RUN_TEST(tr, TestSequenceContainers);
 }
 
 std::ostream& operator<< (std::ostream& os, const PodClass& pod)
@@ -37,7 +37,7 @@ void SerializeAndCountFails(T& t,
     }
 }
 
-void TestBasicTypeSerialization()
+void TestBasicTypes()
 {
     size_t fail_counter = 0;
 
@@ -83,7 +83,7 @@ void TestBasicTypeSerialization()
     }
 }
 
-void TestPointersSerialization()
+void TestPointers()
 {
     double a = 293.32;
     int    b = 1;
@@ -134,7 +134,7 @@ void TestPointersSerialization()
     }
 }
 
-void TestReferencesSerialization()
+void TestReferences()
 {
     double a = 293.32;
     int    b = 1;
@@ -191,37 +191,43 @@ void TestReferencesSerialization()
     }
 }
 
-void TestSequenceContainersSerialization()
+void TestSequenceContainers()
 {
-    vector<int> A = {1, 2, 3, 4, 5};
+    vector<list<int>> a = {{ 1, 2, 3, 4, 5 },
+                           { 897, 231 },
+                           { 0, 0, 0 },
+                           { 12, 23, 54, 90 }};
 
-    vector<list<int>> a = {{1, 2, 3, 4, 5},
-                           {897, 231},
-                           {0, 0, 0},
-                           {12, 23, 54, 90}};
+    list<deque<string>> b = {{ "abc", "def", "ghijk" },
+                             { "123", "45678", "910a", "0909" },
+                             { "Moscow", "Tomsk", "London" }};
+    
+    forward_list<vector<double>> c = {{ 3.14, 9.20, -232.54 },
+                                      { 90832.87, 9032.39, 84343.987 }};
+    
+    array<vector<string>, 3> d = {{{ "Lorem", "ipsum", "dolor", "sit" },
+                                   { "amet", "consectetur", "adipiscing" },
+                                   { "elit", "sed" }}};
 
-    list<deque<string>> b = {{"abc", "def", "ghijk"},
-                             {"123", "45678", "910a", "0909"},
-                             {"Moscow", "Tomsk", "London"}};
-    
-    forward_list<vector<double>> c = {{3.14, 9.20, -232.54},
-                                      {90832.87, 9032.39, 84343.987}};
-    
+    array<int, 5> e = {{ 500, 400, 300, 200, 100 }};
+
     size_t fail_counter = 0;
 
     {
         ofstream output("data.bin", ios_base::binary);
         Archive<ofstream> oa(output);
 
-        auto new_A = A;
         auto new_a = a;
         auto new_b = b;
         auto new_c = c;
+        auto new_d = d;
+        auto new_e = e;
         
-        SerializeAndCountFails(new_A, oa, fail_counter);
         SerializeAndCountFails(new_a, oa, fail_counter);
         SerializeAndCountFails(new_b, oa, fail_counter);
         SerializeAndCountFails(new_c, oa, fail_counter);
+        SerializeAndCountFails(new_d, oa, fail_counter);
+        SerializeAndCountFails(new_e, oa, fail_counter);
     }
 
     {
@@ -232,16 +238,20 @@ void TestSequenceContainersSerialization()
         vector<list<int>> new_a;
         list<deque<string>> new_b;
         forward_list<vector<double>> new_c;
+        array<vector<string>, 3> new_d;
+        array<int, 6> new_e;
 
-        SerializeAndCountFails(new_A, ia, fail_counter);
         SerializeAndCountFails(new_a, ia, fail_counter);
         SerializeAndCountFails(new_b, ia, fail_counter);
         SerializeAndCountFails(new_c, ia, fail_counter);
+        SerializeAndCountFails(new_d, ia, fail_counter);
+        SerializeAndCountFails(new_e, ia, fail_counter);
 
         ASSERT_EQUAL(new_a, a);
         ASSERT_EQUAL(new_b, b);
         ASSERT_EQUAL(new_c, c);
-        ASSERT_EQUAL(fail_counter, 0);
+        ASSERT_EQUAL(new_d, d);
+        ASSERT_EQUAL(fail_counter, 1);
     }
 }
 
