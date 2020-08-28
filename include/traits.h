@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+#include <array>
 #include <vector>
 #include <string>
 #include <deque>
@@ -29,6 +30,12 @@ using is_ostream = std::is_base_of<std::ostream, T>;
 
 template <typename T>
 using is_istream = std::is_base_of<std::istream, T>;
+
+template <typename>
+struct is_std_array : std::false_type {};
+
+template<typename T, std::size_t N>
+struct is_std_array<std::array<T, N>> : std::true_type {};
 
 template <typename>
 struct is_std_vector : std::false_type {};
