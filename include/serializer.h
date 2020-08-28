@@ -1,9 +1,8 @@
 #pragma once
 
-#define NAME(x) #x
-
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 
 #include "traits.h"
 #include "access.h"
@@ -15,12 +14,12 @@ class Serializer
 {
 public:
     static_assert(is_ostream<Stream>::value ||
-                      is_istream<Stream>::value,
+                  is_istream<Stream>::value,
                   "template argument must be a stream");
     template <typename T>
     void operator&(T &t)
     {
-        serialize(t, 0);
+        serialize(t);
     }
 
     Serializer(Stream &stream) : stream(stream) {}
@@ -30,64 +29,87 @@ private:
 
     template <typename T>
     typename std::enable_if<is_serializable<T>::value>::type
-    serialize(T &t, int)
+    serialize(T &t)
     {
         Access::serialize(*this, t);
     }
 
     template <typename T>
-    typename std::enable_if<(is_std_vector<T>::value ||
+    typename std::enable_if<(is_std_array<T>::value ||
+                             is_std_vector<T>::value ||
                              is_std_string<T>::value ||
                              is_std_list<T>::value ||
                              is_std_deque<T>::value) &&
-                            is_ostream<Stream>::value>::type
-    serialize(T &t, int)
+                             is_ostream<Stream>::value>::type
+    serialize(T &t)
     {
         auto size = static_cast<uint32_t>(t.size());
-        serialize(size, 0);
+        serialize(size);
         serialize_container(t);
     }
 
     template <typename T>
     typename std::enable_if<is_std_forward_list<T>::value &&
                             is_ostream<Stream>::value>::type
-    serialize(T &t, int)
+    serialize(T &t)
     {
         auto size = static_cast<uint32_t>(std::distance(t.begin(), t.end()));
-        serialize(size, 0);
+        serialize(size);
         serialize_container(t);
+    }
+
+    template <typename T>
+    typename std::enable_if<is_std_array<T>::value &&
+                            is_istream<Stream>::value>::type
+    serialize(T& t)
+    {
+        uint32_t size = 0;
+        serialize(size);
+        
+        if (size != t.size())
+        {
+            std::ostringstream os;
+            os << "Different sizes of static std arrays. Serialized array size: " << size <<
+               ". Deserializable array size: " << t.size() << ". Deserialization failed.";
+            throw std::invalid_argument(os.str());
+        }
+
+        for (auto &item : t)
+        {
+            serialize(item);
+        }
     }
 
     template <typename T>
     typename std::enable_if<(is_std_vector<T>::value ||
                              is_std_string<T>::value) &&
-                            is_istream<Stream>::value>::type
-    serialize(T &t, int)
+                             is_istream<Stream>::value>::type
+    serialize(T &t)
     {
         uint32_t size = 0;
-        serialize(size, 0);
+        serialize(size);
         t.resize(size);
 
         for (uint32_t i = 0; i < size; i++)
         {
-            serialize(t[i], 0);
+            serialize(t[i]);
         }
     }
 
     template <typename T>
     typename std::enable_if<(is_std_list<T>::value ||
                              is_std_deque<T>::value) &&
-                            is_istream<Stream>::value>::type
-    serialize(T &t, int)
+                             is_istream<Stream>::value>::type
+    serialize(T &t)
     {
         uint32_t size = 0;
-        serialize(size, 0);
+        serialize(size);
         t.clear();
 
         for (uint32_t i = 0; i < size; i++)
         {
             typename T::value_type item;
-            serialize(item, 0);
+            serialize(item);
             t.push_back(std::move(item));
         }
     }
@@ -95,16 +117,16 @@ private:
     template <typename T>
     typename std::enable_if<is_std_forward_list<T>::value &&
                             is_istream<Stream>::value>::type
-    serialize(T &t, int)
+    serialize(T &t)
     {
         uint32_t size = 0;
-        serialize(size, 0);
+        serialize(size);
         t.clear();
 
         for (uint32_t i = 0; i < size; i++)
         {
             typename T::value_type item;
-            serialize(item, 0);
+            serialize(item);
             t.push_front(std::move(item));
         }
 
@@ -116,7 +138,7 @@ private:
     {
         for (auto iter = begin(t); iter != end(t); ++iter)
         {
-            serialize(*iter, 0);
+            serialize(*iter);
         }
     }
 
@@ -125,7 +147,7 @@ private:
                             std::is_fundamental<T>::value &&
                             !std::is_reference<T>::value &&
                             is_ostream<Stream>::value>::type
-    serialize(T &t, int)
+    serialize(T &t)
     {
         stream.write(reinterpret_cast<const char*>(&t), sizeof(t));
     }
@@ -135,13 +157,12 @@ private:
                             std::is_fundamental<T>::value &&
                             !std::is_reference<T>::value &&
                             is_istream<Stream>::value>::type
-    serialize(T &t, int)
+    serialize(T &t)
     {
         stream.read(const_cast<char *>(reinterpret_cast<const char *>(&t)), sizeof(t));
     }
 
-    template <typename T>
-    void serialize(T &t, ...)
+    void serialize(...)
     {
         throw std::invalid_argument("Unsupported type. Serialization failed.");
     }
