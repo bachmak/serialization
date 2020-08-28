@@ -28,19 +28,19 @@ private:
     Stream &stream;
 
     template <typename T>
-    typename std::enable_if<is_serializable<T>::value>::type
+    enable_if_t<is_serializable<T>::value>
     serialize(T &t)
     {
         Access::serialize(*this, t);
     }
 
     template <typename T>
-    typename std::enable_if<(is_std_array<T>::value ||
-                             is_std_vector<T>::value ||
-                             is_std_string<T>::value ||
-                             is_std_list<T>::value ||
-                             is_std_deque<T>::value) &&
-                             is_ostream<Stream>::value>::type
+    enable_if_t<(is_std_array<T>::value  ||
+                 is_std_vector<T>::value ||
+                 is_std_string<T>::value ||
+                 is_std_list<T>::value   ||
+                 is_std_deque<T>::value) &&
+                 is_ostream<Stream>::value>
     serialize(T &t)
     {
         auto size = static_cast<uint32_t>(t.size());
@@ -49,8 +49,8 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<is_std_forward_list<T>::value &&
-                            is_ostream<Stream>::value>::type
+    enable_if_t<is_std_forward_list<T>::value &&
+                is_ostream<Stream>::value>
     serialize(T &t)
     {
         auto size = static_cast<uint32_t>(std::distance(t.begin(), t.end()));
@@ -59,8 +59,8 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<is_std_array<T>::value &&
-                            is_istream<Stream>::value>::type
+    enable_if_t<is_std_array<T>::value &&
+                is_istream<Stream>::value>
     serialize(T& t)
     {
         uint32_t size = 0;
@@ -81,9 +81,9 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<(is_std_vector<T>::value ||
-                             is_std_string<T>::value) &&
-                             is_istream<Stream>::value>::type
+    enable_if_t<(is_std_vector<T>::value  ||
+                 is_std_string<T>::value) &&
+                 is_istream<Stream>::value>
     serialize(T &t)
     {
         uint32_t size = 0;
@@ -97,9 +97,9 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<(is_std_list<T>::value ||
-                             is_std_deque<T>::value) &&
-                             is_istream<Stream>::value>::type
+    enable_if_t<(is_std_list<T>::value   ||
+                 is_std_deque<T>::value) &&
+                 is_istream<Stream>::value>
     serialize(T &t)
     {
         uint32_t size = 0;
@@ -115,8 +115,8 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<is_std_forward_list<T>::value &&
-                            is_istream<Stream>::value>::type
+    enable_if_t<is_std_forward_list<T>::value &&
+                is_istream<Stream>::value>
     serialize(T &t)
     {
         uint32_t size = 0;
@@ -143,20 +143,20 @@ private:
     }
 
     template <typename T>
-    typename std::enable_if<!is_serializable<T>::value &&
-                            std::is_fundamental<T>::value &&
-                            !std::is_reference<T>::value &&
-                            is_ostream<Stream>::value>::type
+    enable_if_t<!is_serializable<T>::value    &&
+                std::is_fundamental<T>::value &&
+                !std::is_reference<T>::value  &&
+                is_ostream<Stream>::value>
     serialize(T &t)
     {
         stream.write(reinterpret_cast<const char*>(&t), sizeof(t));
     }
 
     template <typename T>
-    typename std::enable_if<!is_serializable<T>::value &&
-                            std::is_fundamental<T>::value &&
-                            !std::is_reference<T>::value &&
-                            is_istream<Stream>::value>::type
+    enable_if_t<!is_serializable<T>::value    &&
+                std::is_fundamental<T>::value &&
+                !std::is_reference<T>::value  &&
+                is_istream<Stream>::value>
     serialize(T &t)
     {
         stream.read(const_cast<char *>(reinterpret_cast<const char *>(&t)), sizeof(t));

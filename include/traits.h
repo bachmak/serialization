@@ -32,37 +32,40 @@ template <typename T>
 using is_istream = std::is_base_of<std::istream, T>;
 
 template <typename>
-struct is_std_array : std::false_type {};
+struct is_std_array : public std::false_type {};
 
 template<typename T, std::size_t N>
-struct is_std_array<std::array<T, N>> : std::true_type {};
+struct is_std_array<std::array<T, N>> : public std::true_type {};
 
 template <typename>
-struct is_std_vector : std::false_type {};
+struct is_std_vector : public std::false_type {};
 
 template <typename T>
-struct is_std_vector<std::vector<T>> : std::true_type {};
+struct is_std_vector<std::vector<T>> : public std::true_type {};
 
 template <typename>
-struct is_std_string : std::false_type {};
+struct is_std_string : public std::false_type {};
 
 template <typename T>
-struct is_std_string<std::basic_string<T>> : std::true_type {};
+struct is_std_string<std::basic_string<T>> : public std::true_type {};
 
 template <typename>
-struct is_std_deque : std::false_type {};
+struct is_std_deque : public std::false_type {};
 
 template <typename T>
-struct is_std_deque<std::deque<T>> : std::true_type {};
+struct is_std_deque<std::deque<T>> : public std::true_type {};
 
 template <typename>
-struct is_std_list : std::false_type {};
+struct is_std_list : public std::false_type {};
 
 template <typename T>
-struct is_std_list<std::list<T>> : std::true_type {};
+struct is_std_list<std::list<T>> : public std::true_type {};
 
 template <typename>
-struct is_std_forward_list : std::false_type {};
+struct is_std_forward_list : public std::false_type {};
 
 template <typename T>
-struct is_std_forward_list<std::forward_list<T>> : std::true_type {};
+struct is_std_forward_list<std::forward_list<T>> : public std::true_type {};
+
+template<bool B, class T = void>
+using enable_if_t = typename std::enable_if<B, T>::type;
