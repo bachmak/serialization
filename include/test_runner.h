@@ -1,13 +1,11 @@
 #pragma once
 
+#include "traits.h"
+
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
-#include <vector>
-#include <deque>
-#include <list>
-#include <forward_list>
 #include <set>
 #include <map>
 
@@ -23,46 +21,22 @@ inline void PrintDiv(std::ostream& os,  bool& first, const std::string& div = ",
     }
 }
 
-template <typename It>
-void PrintSequence(It it1, It it2, std::ostream& os)
+template <typename T>
+typename std::enable_if<is_iterable<T>::value &&
+                        std::is_class<T>::value &&
+                        !is_std_string<T>::value,
+                        std::ostream&>::type
+operator<<(std::ostream& os, const T& t)
 {
     os << "[";
     bool first = true;
 
-    for (auto it = it1; it != it2; it++)
+    for (const auto &item : t)
     {
         PrintDiv(os, first);
-        os << *it;
+        os << item;
     }
-    os << "]";
-}
-
-template <typename T>
-std::ostream& operator<< (std::ostream& os, const std::vector<T>& v)
-{
-    PrintSequence(v.cbegin(), v.cend(), os);
-    return os;
-}
-
-template <typename T>
-std::ostream& operator<< (std::ostream& os, const std::deque<T>& v)
-{
-    PrintSequence(v.cbegin(), v.cend(), os);
-    return os;
-}
-
-template <typename T>
-std::ostream& operator<< (std::ostream& os, const std::list<T>& v)
-{
-    PrintSequence(v.cbegin(), v.cend(), os);
-    return os;
-}
-
-template <typename T>
-std::ostream& operator<< (std::ostream& os, const std::forward_list<T>& v)
-{
-    PrintSequence(v.cbegin(), v.cend(), os);
-    return os;
+    return os << "]";
 }
 
 template <class T>
@@ -145,6 +119,20 @@ void AssertEqual(const X& x, const Y& y, const std::string& hint = {})
     }
 }
 
+template <typename X, typename Y>
+void AssertNotEqual(const X& x, const Y& y, const std::string& hint = {})
+{
+    if (x == y)
+    {
+        std::ostringstream os;
+        os << "Assertion failed: " << x << " == " << y;
+        if (!hint.empty())
+        {
+            os << "\thint: " << hint;
+        }
+        throw std::runtime_error(os.str());
+    }
+}
 
 inline void AssertTrue(bool b, const std::string& hint = {})
 {
@@ -161,6 +149,14 @@ inline void AssertFalse(bool b, const std::string& hint = {})
 {                                           \
     std::ostringstream macro_os;            \
     macro_os << #x << " != " << #y << ", "  \
+        << __FILE__ << ':' << __LINE__;     \
+    AssertEqual(x, y, macro_os.str());      \
+}
+
+#define ASSERT_NOT_EQUAL(x, y)              \
+{                                           \
+    std::ostringstream macro_os;            \
+    macro_os << #x << " == " << #y << ", "  \
         << __FILE__ << ':' << __LINE__;     \
     AssertEqual(x, y, macro_os.str());      \
 }
