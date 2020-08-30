@@ -1,3 +1,6 @@
+/*  Мини-фреймворк для выполнения юнит-тестов и вывода отладочной информации.
+*/
+
 #pragma once
 
 #include "traits.h"
@@ -9,119 +12,62 @@
 #include <set>
 #include <map>
 
-inline void PrintDiv(std::ostream& os,  bool& first, const std::string& div = ", ")
-{
-    if (!first)
+class TestRunner                                                                // Класс TestRunner запускает тестовые функции, считает,
+{                                                                               // сколько юнит-тестов выполнились успешно и при наличии ошибок 
+public:                                                                         // останавливает выполнение программы.
+    template <class TestFunc>                                                   // Шаблонный метод для запуска одной тестовой функции:
+    void RunTest(const TestFunc& func, const std::string& func_name)            // принимает по ссылке тестовую функцию и строку с ее описанием.
     {
-        os << div;
-    }
-    else
-    {
-        first = false;
-    }
-}
-
-template <typename T>
-typename std::enable_if<is_iterable<T>::value &&
-                        std::is_class<T>::value &&
-                        !is_std_string<T>::value,
-                        std::ostream&>::type
-operator<<(std::ostream& os, const T& t)
-{
-    os << "[";
-    bool first = true;
-
-    for (const auto &item : t)
-    {
-        PrintDiv(os, first);
-        os << item;
-    }
-    return os << "]";
-}
-
-template <class T>
-std::ostream& operator<< (std::ostream& os, const std::set<T>& s)
-{
-    os << "{";
-    bool first = true;
-    for(const auto& x : s)
-    {
-        PrintDiv(os, first);
-        os << x;
-    }
-    return os << "}";
-}
-
-
-template <class K, class V>
-std::ostream& operator<< (std::ostream& os, const std::map<K, V>& m)
-{
-    os << "{";
-    bool first = true;
-    for(const auto& kv : m)
-    {
-        PrintDiv(os, first);
-        os << kv.first << ": " << kv.second;
-    }
-    return os << "}";
-}
-
-
-class TestRunner
-{
-public:
-    template <class TestFunc>
-    void RunTest(const TestFunc& func, const std::string& func_name)
-    {
-        try
+        try                                                                     // Блок, в котором возможны исключения:
         {
-            func();
-            std::cerr << func_name << " OK" << std::endl;
+            func();                                                             // Вызываем тестовую функцию (содержащую ассерты).
+            std::cerr << func_name << " OK" << std::endl;                       // Если исключений не было, выводим "_ОПИСАНИЕ_ ОК" в стандартный
+        }                                                                       // поток ошибок.
+        catch(std::exception& e)                                                // Если было из тестовой функции было выброшено исключение,
+        {                                                                       // ловим его.
+            std::cerr << func_name << " failed. " << e.what() << std::endl;     // Выводим "_ОПИСАНИЕ_ failed. _ПРИЧИНА_ОШИБКИ_" и
+            ++fail_count;                                                       // инкрементируем счетчик ошибок.
         }
-        catch(std::exception& e)
+        catch(...)                                                              // Ловим неизвестное исключение.
         {
-            std::cerr << func_name << " failed. " << e.what() << std::endl;
-            ++fail_count;
-        }
-        catch(...)
-        {
-            std::cerr << "Unknown exception caught" << std::endl;
-            ++fail_count;
+            std::cerr << "Unknown exception caught" << std::endl;               // Выводим информацию о неизвестном исключении в поток ошибок,
+            ++fail_count;                                                       // инкрементируем счетчик ошибок.
         }
     }
     
-    ~TestRunner()
-    {
-        if (fail_count)
-        {
-            std::cerr << fail_count << " unit-tests failed. Terminate" << std::endl;
-            exit(1);
+    ~TestRunner()                                                               // Деструктор (предполагается, что он будет вызываться перед
+    {                                                                           // началом выполнения основного кода программы).
+        if (fail_count)                                                         // Если хотя бы один юнит-тест выполнился неудачно,
+        {                                                           
+            std::cerr << fail_count << " unit-tests failed."                    // Выводим отладочное сообщение в поток ошибок
+                      << " Terminate" << std::endl;
+            exit(1);                                                            // и завершаем выполнение программы.
         }
     };
     
 private:
-    int fail_count = 0;
+    int fail_count = 0;                                                         // Счетчик неудачных юнит-тестов.
 };
 
 
-template <typename X, typename Y>
-void AssertEqual(const X& x, const Y& y, const std::string& hint = {})
+template <typename X, typename Y>                                               // Шаблонная функция для проверки переменных на равенство:
+void AssertEqual(const X& x, const Y& y, const std::string& hint = {})          // принимает сравниваемые переменные и строку с описанием.
 {
-    if (!(x == y))
-    {
-        std::ostringstream os;
+    if (!(x == y))                                                              // Если переменные не равны (проверка именно в таком виде, т.к.
+    {                                                                           // для шаблонного типа м.б. перегружен ==, но не перегружен !=),
+        std::ostringstream os;                                                  // из значений переменных формируем сообщение об ошибке.
         os << "Assertion failed: " << x << " != " << y;
-        if (!hint.empty())
+        if (!hint.empty())                                                      // Если есть описание,
         {
-            os << "\thint: " << hint;
+            os << "\thint: " << hint;                                           // добавляем его в сообщение об ошибке.
         }
-        throw std::runtime_error(os.str());
+        throw std::runtime_error(os.str());                                     // Выбрасываем исключение со сформированной ошибкой.
     }
 }
 
-template <typename X, typename Y>
-void AssertNotEqual(const X& x, const Y& y, const std::string& hint = {})
-{
+template <typename X, typename Y>                                               // Шаблонная функция для проверки переменных на неравенство:
+void AssertNotEqual(const X& x, const Y& y, const std::string& hint = {})       // аналогично AssertEqual – выбрасываем исключение,
+{                                                                               // если переменные равны
     if (x == y)
     {
         std::ostringstream os;
@@ -134,16 +80,67 @@ void AssertNotEqual(const X& x, const Y& y, const std::string& hint = {})
     }
 }
 
-inline void AssertTrue(bool b, const std::string& hint = {})
-{
-    AssertEqual(b, true, hint);
+inline void AssertTrue(bool b, const std::string& hint = {})                    // Функция для проверки истинности выражения:
+{                                                                               // принимает булевое выражение и выбрасывает исключение, если 
+    AssertEqual(b, true, hint);                                                 // оно ложно.
 }
 
-inline void AssertFalse(bool b, const std::string& hint = {})
-{
-    AssertEqual(b, false, hint);
+inline void AssertFalse(bool b, const std::string& hint = {})                   // Функция для проверки истинности выражения:
+{                                                                               // аналогично AssertTrue – выбрасываем исключение,
+    AssertEqual(b, false, hint);                                                // если выражение b истинно.
 }
 
+inline void PrintDiv(std::ostream& os,                                          // Функция для вывода разделителя между элементами контейнера
+                     bool& first,                                               // при его выводе в поток.
+                     const std::string& div = ", ")
+{
+    if (!first)                                                                 // Если элемент не первый,
+    {
+        os << div;                                                              // выводим разделитель.
+    }
+    else                                                                        // Иначе – не выводим,
+    {
+        first = false;                                                          // элемент больше не первый.
+    }
+}
+                                                                                // Шаблонные перегрузки оператора вывода в поток:
+template <typename T>                                                           // (1) подставляется, если:
+typename std::enable_if<is_iterable<T>::value &&                                // – тип T поддерживает range-based for loop; и 
+                        std::is_class<T>::value &&                              // – тип T создан как class или struct; и
+                        !is_std_string<T>::value,                               // – тип T не является стандартной строкой (<< уже перегружен).
+                        std::ostream&>::type                                    // Возвращает ссылку на выходной поток.
+operator<<(std::ostream& os, const T& t)
+{
+    os << "[";  
+    bool first = true;                                                          // Первый элемент ещё не выведен.
+
+    for (const auto& item : t)                                                  // Итерируемся по контейнеру:                                                  
+    {
+        PrintDiv(os, first);                                                    // выводим разделитель (если нужно),
+        os << item;                                                             // выводим элемент.
+    }
+    return os << "]";
+}
+
+template <class K, class V>                                                     // (2) 
+std::ostream& operator<<(std::ostream& os, const std::map<K, V>& m)             // Перегрузка оператора вывода в поток для std::map:
+{                                                                               // работает аналогично перегрузке (1), но выводит элементы в
+    os << "{";                                                                  // формате "_КЛЮЧ_: _ЗНАЧЕНИЕ_".
+    bool first = true;
+
+    for(const auto& item : m)
+    {
+        PrintDiv(os, first);
+        os << item.first << ": " << item.second;
+    }
+    return os << "}";
+}
+
+/*  Макросы для автоматического создания описаний 
+    (имена переменных, название файла и номер строки,
+    откуда вызывается тестовая функция) 
+    и вызова функций Assert с этими описаниями.
+*/
 
 #define ASSERT_EQUAL(x, y)                  \
 {                                           \
@@ -158,7 +155,7 @@ inline void AssertFalse(bool b, const std::string& hint = {})
     std::ostringstream macro_os;            \
     macro_os << #x << " == " << #y << ", "  \
         << __FILE__ << ':' << __LINE__;     \
-    AssertEqual(x, y, macro_os.str());      \
+    AssertNotEqual(x, y, macro_os.str());   \
 }
 
 #define ASSERT_TRUE(x)                      \
@@ -176,6 +173,11 @@ inline void AssertFalse(bool b, const std::string& hint = {})
         << __FILE__ << ':' << __LINE__;     \
     AssertFalse(x, macro_os.str());         \
 }
+
+/*  Макрос RUN_TEST(tr, func) вызывает метод
+    RunTest у объекта tr и передает в качестве 
+    параметров функцию func и строку с ее названием.
+*/
 
 #define RUN_TEST(tr, func)                  \
 {                                           \

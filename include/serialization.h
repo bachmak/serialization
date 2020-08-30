@@ -9,56 +9,43 @@
 #include "serializer.h"
 #include "traits.h"
 
-#include <iostream>
-
 template <typename Stream>
 class Archive
 {
 public:
-    static_assert(is_ostream<Stream>::value ||                                  // Проверка на этапе компиляции:
+    static_assert(is_ostream<Stream>::value ||                                  // Проверяем на этапе компиляции:
                   is_istream<Stream>::value,                                    // инстанцирование может производиться только от стандартных
-                  "template argument must be a stream");                        // потоков.
+                  "Template argument must be a stream.");                       // потоков.
 
-    Archive(Stream &stream) : stream(stream) {}                                 // Конструктор с передачей потока по ссылке
-
+    Archive(Stream &stream) : serializer(Serializer<Stream>(stream)) {}         // Конструктор с передачей потока для сериализации по ссылке
+                                                                                // и созданием сериализатора для этого потока.
     template <typename T, bool Enable=true>                                     // Оператор вывода в поток (сериализации) для lvalue-ссылок:
-    typename std::enable_if<is_ostream<Stream>::value && Enable>::type          // срабатывает только если шаблонный параметр является выходным
+    typename std::enable_if<is_ostream<Stream>::value && Enable>::type          // доступен, только если шаблонный параметр является выходным
     operator<<(T& t)                                                            // потоком.
     {
-        Serializer<std::ostream> s(stream);                                     // Создаем сериализатор,
-        s & t;                                                                  // вызываем сериализацию шаблонного аргумента.
+        serializer.serialize(t);                                                // Вызываем сериализацию шаблонного аргумента.
     }
 
     template <typename T, bool Enable=true>                                     // Оператор вывода в поток для rvalue-ссылок
-    typename std::enable_if<is_ostream<Stream>::value && Enable>::type          // (временных объектов)
+    typename std::enable_if<is_ostream<Stream>::value && Enable>::type          // (временных объектов).
     operator<<(T&& t)
     {
-        Serializer<std::ostream> s(stream);
-        s & t;
+        serializer.serialize(t);
     }
 
-    template <typename T, bool Enable=true>
-    typename std::enable_if<is_istream<Stream>::value && Enable>::type
-    operator>>(T& t)
+    template <typename T, bool Enable=true>                                     // Оператор ввода из потока (десериализации):
+    typename std::enable_if<is_istream<Stream>::value && Enable>::type          // доступен, только если шаблонный параметр является входным
+    operator>>(T& t)                                                            // потоком.
     {
-        Serializer<std::istream> s(stream);
-        s & t;
+        serializer.serialize(t);
     }
 
-    template <typename T, bool Enable=true>
-    typename std::enable_if<is_ostream<Stream>::value && Enable>::type
-    operator&(T& t)
+    template <typename T, bool Enable=true>                                     // Универсальный оператор для сериализации/десериализации
+    void operator&(T& t)                                                        // (для использования при необходимости).
     {
-        *this << t;
-    }
-
-    template <typename T, bool Enable=true>
-    typename std::enable_if<is_istream<Stream>::value && Enable>::type
-    operator&(T& t)
-    {
-        *this >> t;
+        serializer.serialize(t);
     }
 
 private:
-    Stream &stream;
+    Serializer<Stream> serializer;                                              // сериализатор, выполняющий, непосредственно, сериализацию.
 };
