@@ -7,14 +7,21 @@
 #include <deque>
 #include <list>
 #include <forward_list>
+#include <set>
+#include <map>
+
+template<bool B, class T = void>
+using enable_if_t = typename std::enable_if<B, T>::type;
+
+// Проверка на возможность поддержки цикла range-based for
 
 struct Iterable
 {
     template <typename T>
     static decltype(
-        std::begin(std::declval<T &>()) != std::end(std::declval<T &>()),
-        ++std::declval<decltype(std::begin(std::declval<T &>())) &>(),
-        *std::begin(std::declval<T &>()),
+        std::begin(std::declval<T&>()) != std::end(std::declval<T&>()),
+        ++std::declval<decltype(std::begin(std::declval<T&>()))&>(),
+        *std::begin(std::declval<T&>()),
         std::true_type{})
     is_iterable(int);
 
@@ -25,11 +32,30 @@ struct Iterable
 template <typename T>
 using is_iterable = decltype(Iterable::is_iterable<T>(0));
 
+struct HasSize
+{
+    template <typename T>
+    static decltype(
+        std::declval<size_t>() == std::declval<T&>().size(),
+        std::true_type{})
+    has_size(int);
+
+    template <typename T>
+    static std::false_type has_size(...);
+};
+
+template <typename T>
+using has_size = decltype(HasSize::has_size<T>(0));
+
+// Проверки потоков
+
 template <typename T>
 using is_ostream = std::is_base_of<std::ostream, T>;
 
 template <typename T>
 using is_istream = std::is_base_of<std::istream, T>;
+
+// Проверки стандартных линейных (последовательных) контейнеров
 
 template <typename>
 struct is_std_array : public std::false_type {};
@@ -37,11 +63,15 @@ struct is_std_array : public std::false_type {};
 template<typename T, std::size_t N>
 struct is_std_array<std::array<T, N>> : public std::true_type {};
 
+//
+
 template <typename>
 struct is_std_vector : public std::false_type {};
 
 template <typename T>
 struct is_std_vector<std::vector<T>> : public std::true_type {};
+
+//
 
 template <typename>
 struct is_std_string : public std::false_type {};
@@ -49,11 +79,15 @@ struct is_std_string : public std::false_type {};
 template <typename T>
 struct is_std_string<std::basic_string<T>> : public std::true_type {};
 
+//
+
 template <typename>
 struct is_std_deque : public std::false_type {};
 
 template <typename T>
 struct is_std_deque<std::deque<T>> : public std::true_type {};
+
+//
 
 template <typename>
 struct is_std_list : public std::false_type {};
@@ -61,11 +95,44 @@ struct is_std_list : public std::false_type {};
 template <typename T>
 struct is_std_list<std::list<T>> : public std::true_type {};
 
+//
+
 template <typename>
 struct is_std_forward_list : public std::false_type {};
 
 template <typename T>
 struct is_std_forward_list<std::forward_list<T>> : public std::true_type {};
 
-template<bool B, class T = void>
-using enable_if_t = typename std::enable_if<B, T>::type;
+// Проверки на ассоциативные контейнеры
+
+template <typename>
+struct is_std_set : public std::false_type {};
+
+template <typename T>
+struct is_std_set<std::set<T>> : public std::true_type {};
+
+//
+
+template <typename>
+struct is_std_multiset : public std::false_type {};
+
+template <typename T>
+struct is_std_multiset<std::multiset<T>> : public std::true_type {};
+
+//
+
+template <typename>
+struct is_std_map : public std::false_type {};
+
+template <typename K, typename V>
+struct is_std_map<std::map<K, V>> : public std::true_type {};
+
+//
+
+template <typename>
+struct is_std_multimap : public std::false_type {};
+
+template <typename K, typename V>
+struct is_std_multimap<std::multimap<K, V>> : public std::true_type {};
+
+//
