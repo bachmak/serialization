@@ -32,6 +32,8 @@ struct Iterable
 template <typename T>
 using is_iterable = decltype(Iterable::is_iterable<T>(0));
 
+// Проверка на наличие метода size()
+
 struct HasSize
 {
     template <typename T>
@@ -46,6 +48,23 @@ struct HasSize
 
 template <typename T>
 using has_size = decltype(HasSize::has_size<T>(0));
+
+// Проверка на наличие метода insert()
+
+struct HasInsert
+{
+    template <typename T>
+    static decltype(
+        std::declval<T&>().insert(std::declval<typename T::value_type>()),
+        std::true_type{})
+    has_insert(int);
+
+    template <typename T>
+    static std::false_type has_insert(...);
+};
+
+template <typename T>
+using has_insert = decltype(HasInsert::has_insert<T>(0));
 
 // Проверки потоков
 
@@ -102,37 +121,3 @@ struct is_std_forward_list : public std::false_type {};
 
 template <typename T>
 struct is_std_forward_list<std::forward_list<T>> : public std::true_type {};
-
-// Проверки на ассоциативные контейнеры
-
-template <typename>
-struct is_std_set : public std::false_type {};
-
-template <typename T>
-struct is_std_set<std::set<T>> : public std::true_type {};
-
-//
-
-template <typename>
-struct is_std_multiset : public std::false_type {};
-
-template <typename T>
-struct is_std_multiset<std::multiset<T>> : public std::true_type {};
-
-//
-
-template <typename>
-struct is_std_map : public std::false_type {};
-
-template <typename K, typename V>
-struct is_std_map<std::map<K, V>> : public std::true_type {};
-
-//
-
-template <typename>
-struct is_std_multimap : public std::false_type {};
-
-template <typename K, typename V>
-struct is_std_multimap<std::multimap<K, V>> : public std::true_type {};
-
-//
