@@ -278,6 +278,8 @@ void TestReferences();
 
 void TestSequenceContainers();
 
+void TestAssociativeContainers();
+
 void TestSerializeAccessCombinations();
 
 void TestPodClass();

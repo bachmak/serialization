@@ -14,6 +14,7 @@ void TestAll()
     RUN_TEST(tr, TestPointers);
     RUN_TEST(tr, TestReferences);
     RUN_TEST(tr, TestSequenceContainers);
+    RUN_TEST(tr, TestAssociativeContainers);
     RUN_TEST(tr, TestSerializeAccessCombinations);
     RUN_TEST(tr, TestClassWithNestedStruct);
 }
@@ -189,41 +190,35 @@ void TestReferences()
 
 void TestSequenceContainers()
 {
-    vector<list<int>> a = {{ 1, 2, 3, 4, 5 },
-                           { 897, 231 },
-                           { 0, 0, 0 },
-                           { 12, 23, 54, 90 }};
+    vector<list<int>>            a = {{ 1, 2, 3, 4, 5 },
+                                      { 897, 231 },
+                                      { 0, 0, 0 },
+                                      { 12, 23, 54, 90 }};
 
-    list<deque<string>> b = {{ "abc", "def", "ghijk" },
-                             { "123", "45678", "910a", "0909" },
-                             { "Moscow", "Tomsk", "London" }};
+    list<deque<string>>          b = {{ "abc", "def", "ghijk" },
+                                      { "123", "45678", "910a", "0909" },
+                                      { "Moscow", "Tomsk", "London" }};
     
     forward_list<vector<double>> c = {{ 3.14, 9.20, -232.54 },
                                       { 90832.87, 9032.39, 84343.987 }};
     
-    array<vector<string>, 3> d = {{{ "Lorem", "ipsum", "dolor", "sit" },
-                                   { "amet", "consectetur", "adipiscing" },
-                                   { "elit", "sed" }}};
+    array<vector<string>, 3>     d = {{{ "Lorem", "ipsum", "dolor", "sit" },
+                                       { "amet", "consectetur", "adipiscin" },
+                                       { "elit", "sed" }}};
 
-    array<int, 5> e = {{ 500, 400, 300, 200, 100 }};
+    array<int, 5>                e = {{ 500, 400, 300, 200, 100 }};
 
     size_t fail_counter = 0;
 
     {
         ofstream output("data.bin", ios_base::binary);
         Archive<ofstream> oa(output);
-
-        auto new_a = a;
-        auto new_b = b;
-        auto new_c = c;
-        auto new_d = d;
-        auto new_e = e;
         
-        SerializeAndCountFails(new_a, oa, fail_counter);
-        SerializeAndCountFails(new_b, oa, fail_counter);
-        SerializeAndCountFails(new_c, oa, fail_counter);
-        SerializeAndCountFails(new_d, oa, fail_counter);
-        SerializeAndCountFails(new_e, oa, fail_counter);
+        SerializeAndCountFails(a, oa, fail_counter);
+        SerializeAndCountFails(b, oa, fail_counter);
+        SerializeAndCountFails(c, oa, fail_counter);
+        SerializeAndCountFails(d, oa, fail_counter);
+        SerializeAndCountFails(e, oa, fail_counter);
     }
 
     {
@@ -248,6 +243,85 @@ void TestSequenceContainers()
         ASSERT_EQUAL(new_c, c);
         ASSERT_EQUAL(new_d, d);
         ASSERT_EQUAL(fail_counter, 1);
+    }
+}
+
+void TestAssociativeContainers()
+{
+    set<int>                     a = { 1, 3, 2, 6, 4, 5 };
+    
+    multiset<int>                b = { 10, 30, 10, 20, 60, 50, 50, 40 };
+
+    set<vector<string>>          c = {{ "abc", "cde", "efg", "ghi" },
+                                      { "hello", "goodbye", "1234" }};
+    
+    multiset<set<double>>        d = {{ 0.5, 0.6, 0.7 },
+                                      { 0.8, 0.9, 1.0 },
+                                      { 1.1, 1.2, 1.3 }};
+
+    multiset<multiset<uint32_t>> e = {{ 1, 1, 2, 2 },
+                                      { 2, 2, 3, 4 }};
+
+    map<int, string>             f = {{ 1, "one" },
+                                      { 2, "two" },
+                                      { 3, "three" }};
+
+    multimap<string, set<int>>   g = {{ "even", { 0, 2, 4 }},
+                                      { "even", { 252, 254, 256 }},
+                                      { "neg", { -2, -3, -4 }},
+                                      { "pos", { 2, 3, 4 }}};
+
+    map<string, int>             h = {{ "one", 1 },
+                                      { "two", 2 },
+                                      { "three", 3 }};
+
+    size_t fail_counter = 0;
+
+    {
+        ofstream output("data.bin", ios_base::binary);
+        Archive<ofstream> oa(output);
+
+        SerializeAndCountFails(a, oa, fail_counter);
+        SerializeAndCountFails(b, oa, fail_counter);
+        SerializeAndCountFails(c, oa, fail_counter);
+        SerializeAndCountFails(d, oa, fail_counter);
+        SerializeAndCountFails(e, oa, fail_counter);
+        SerializeAndCountFails(f, oa, fail_counter);
+        SerializeAndCountFails(g, oa, fail_counter);
+        SerializeAndCountFails(h, oa, fail_counter);
+    }
+
+    {
+        ifstream input("data.bin", ios_base::binary);
+        Archive<ifstream> ia(input);
+
+        set<int>                     new_a;
+        multiset<int>                new_b;
+        set<vector<string>>          new_c;
+        multiset<set<double>>        new_d;
+        multiset<multiset<uint32_t>> new_e;
+        map<int, string>             new_f;
+        multimap<string, set<int>>   new_g;
+        map<string, int>             new_h;
+
+        SerializeAndCountFails(new_a, ia, fail_counter);
+        SerializeAndCountFails(new_b, ia, fail_counter);
+        SerializeAndCountFails(new_c, ia, fail_counter);
+        SerializeAndCountFails(new_d, ia, fail_counter);
+        SerializeAndCountFails(new_e, ia, fail_counter);
+        SerializeAndCountFails(new_f, ia, fail_counter);
+        SerializeAndCountFails(new_g, ia, fail_counter);
+        SerializeAndCountFails(new_h, ia, fail_counter);
+
+        ASSERT_EQUAL(new_a, a);
+        ASSERT_EQUAL(new_b, b);
+        ASSERT_EQUAL(new_c, c);
+        ASSERT_EQUAL(new_d, d);
+        ASSERT_EQUAL(new_e, e);
+        ASSERT_EQUAL(new_f, f);
+        ASSERT_EQUAL(new_g, g);
+        ASSERT_EQUAL(new_h, h);
+        ASSERT_FALSE(fail_counter);
     }
 }
 

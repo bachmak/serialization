@@ -43,6 +43,7 @@ public:                                                                         
                       << " Terminate" << std::endl;
             exit(1);                                                            // и завершаем выполнение программы.
         }
+        std::cerr << "======== ALL TESTS OK ========" << std::endl;             // Иначе – успех.
     };
     
 private:
@@ -122,18 +123,10 @@ operator<<(std::ostream& os, const T& t)
     return os << "]";
 }
 
-template <class K, class V>                                                     // (2) 
-std::ostream& operator<<(std::ostream& os, const std::map<K, V>& m)             // Перегрузка оператора вывода в поток для std::map:
-{                                                                               // работает аналогично перегрузке (1), но выводит элементы в
-    os << "{";                                                                  // формате "_КЛЮЧ_: _ЗНАЧЕНИЕ_".
-    bool first = true;
-
-    for(const auto& item : m)
-    {
-        PrintDiv(os, first);
-        os << item.first << ": " << item.second;
-    }
-    return os << "}";
+template <typename First, typename Second>
+std::ostream& operator<<(std::ostream& os, const std::pair<First, Second>& p)
+{
+    return os << p.first << ": " << p.second;
 }
 
 /*  Макросы для автоматического создания описаний 
