@@ -1,3 +1,9 @@
+/*  Заголовочный файл с объявлениями тестовых классов и функций,
+    используемых для юнит-тестирования.
+    Функция TestAll() должна вызываться до начала работы
+    основного кода программы в функции main().
+*/
+
 #pragma once
 
 #include "serializer.h"
@@ -11,7 +17,17 @@
 #include <forward_list>
 #include <iostream>
 
-class NotSerializableWithFriendAccess
+/*  Тестовые классы для проверки корректности сериализации.
+    Для каждого такого класса реализованы:
+    – оператор сравнения для проверки действительного и
+      ожидаемого результатов сериализации в tests.cpp;
+    – оператор вывода в поток для получения отладочной
+      информации о неудачных тестах;
+    – параметризованный конструктор и конструктор умолчания
+      для более удобного создания различных объектов класса. 
+*/
+
+class NotSerializableWithFriendAccess                                           // (1) нет serialize(), есть Access
 {
 public:
     NotSerializableWithFriendAccess(int a, int b) : a(a), b(b) {}
@@ -34,7 +50,7 @@ private:
     int b = 2;
 };
 
-class NotSerializableWithoutFriendAccess
+class NotSerializableWithoutFriendAccess                                        // (2) нет serialize(), нет Access
 {
 public:
     NotSerializableWithoutFriendAccess(int a, int b) : a(a), b(b) {}
@@ -56,7 +72,7 @@ private:
     int b = 2;
 };
 
-class SerializableWithoutFriendAccess
+class SerializableWithoutFriendAccess                                           // (3) есть serialize(), нет Access
 {
 public:
     SerializableWithoutFriendAccess(int a, int b) : a(a), b(b) {}
@@ -85,7 +101,7 @@ private:
     int b = 2;
 };
 
-class SerializableWithFriendAccess
+class SerializableWithFriendAccess                                              // (4) есть приватный serialize() и Access
 {
 public:
     SerializableWithFriendAccess(int a, int b) : a(a), b(b) {}
@@ -116,7 +132,7 @@ private:
     int b = 2;
 };
 
-class PublicSerializableWithoutFriendAccess
+class PublicSerializableWithoutFriendAccess                                     // (5) есть публичный serialize() и Access
 {
 public:
     PublicSerializableWithoutFriendAccess(int a, int b) : a(a), b(b) {}
@@ -145,7 +161,7 @@ private:
     int b = 2;
 };
 
-struct StructWithBasicTypesAndContainers
+struct StructWithBasicTypesAndContainers                                        // тестовая структура с полями базовых и контейнерных типов
 {
     StructWithBasicTypesAndContainers(int a = 1, double b = 1.0,
                                       float c = 1.0, char d = 'b',
@@ -188,7 +204,7 @@ private:
     std::forward_list<double> f = { 0.0, 0.0 };
 };
 
-class ClassWithNestedStruct
+class ClassWithNestedStruct                                                     // тестовый класс с вложенной пользовательской структурой
 {
 public:
     ClassWithNestedStruct(int a, std::vector<int> b, float c, std::string d,
@@ -233,7 +249,7 @@ private:
     std::list<std::string> f = {"one", "two"};
 };
 
-class PodClass
+class PodClass                                                                  // тестовый класс с полями базовых типов
 {
 public:
     PodClass(int a, char b, uint32_t c, int64_t d)
@@ -270,20 +286,27 @@ private:
     }
 };
 
-void TestBasicTypes();
+/*  Тестовые функции для проверки корректности сериализации.
+    Все функции определены в tests.cpp.
+    Каждая из этих функций выбрасывает исключение, 
+    если ожидаемые результаты сериализации
+    не совпадают с действительными.  
+*/
 
-void TestPointers();
+void TestBasicTypes();                                                          // функция для проверки сериализации базовых типов
 
-void TestReferences();
+void TestPointers();                                                            // функция для проверки сериализации указателей
 
-void TestSequenceContainers();
+void TestReferences();                                                          // функция для проверки сериализации ссылок
 
-void TestAssociativeContainers();
+void TestSequenceContainers();                                                  // функция для проверки сериализации линейных контейнеров
 
-void TestSerializeAccessCombinations();
+void TestAssociativeContainers();                                               // функция для проверки сериализации ассоциативных контейнеров
 
-void TestPodClass();
+void TestSerializeAccessCombinations();                                         // функция для проверки сериализациия структур (1)-(5)
 
-void TestClassWithNestedStruct();
+void TestPodClass();                                                            // функция для проверки сериализации класса с базовыми полями
 
-void TestAll();
+void TestClassWithNestedStruct();                                               // функция для проверки сериализации класса со структурой внутри
+
+void TestAll();                                                                 // функция для запуска всех тестовых функций
