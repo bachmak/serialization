@@ -44,13 +44,10 @@ private:
     }                                                                           // (на случай, если метод serialize приватный)
 
     template <typename T>                                                       // (2) подставляется, если:
-    enable_if_t<(is_std_array<T>::value  ||                                     // – объект t – любой стандартный последовательный контейнер
-                 is_std_vector<T>::value ||                                     // (статический массив, вектор, строка, двусвязный список, дек),
-                 is_std_string<T>::value ||                                     // за исключением односвязного списка;
-                 is_std_list<T>::value   ||                                     // и
-                 is_std_deque<T>::value) &&                                     // – поток, которым инстанцирован шаблон класса – выходной.
-                 is_ostream<Stream>::value>                                     // Возвращает void.
-    serialize(T& t)
+    enable_if_t<is_iterable<T>::value &&                                        // – тип T поддерживает range-based for loop; и
+                has_size<T>::value   &&                                         // – имеет метод size() (все контейнеры, кроме forward_list); и
+                is_ostream<Stream>::value>                                      // – поток, которым инстанцирован шаблон класса – выходной.
+    serialize(T& t)                                                             // Возвращает void.
     {
         auto size = static_cast<uint32_t>(t.size());                            // Считываем размер контейнера и приводим к размеру 4 байта,
         serialize(size);                                                        // сериализуем размер,
@@ -58,8 +55,8 @@ private:
     }
 
     template <typename T>                                                       // (3) подставляется, если:
-    enable_if_t<is_std_forward_list<T>::value &&                                // – объект t – стандартный односвязный список;
-                is_ostream<Stream>::value>                                      // и
+    enable_if_t<is_std_forward_list<T>::value &&                                // – тип T – стандартный односвязный список 
+                is_ostream<Stream>::value>                                      // (т.к. у std::forward_list нет метода size()); и
     serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – выходной.
     {                                                                           // Возвращает void.
         auto size = static_cast<uint32_t>(std::distance(t.begin(), t.end()));   // Вычисляем размер контейнера прохождением от начала до конца,
@@ -144,6 +141,31 @@ private:
         t.reverse();                                                            // Инвертируем порядок элементов.
     }
 
+    template <typename T>
+    enable_if_t<is_iterable<T>::value &&
+                has_insert<T>::value &&
+                is_istream<Stream>::value>
+    serialize(T& t)
+    {
+        uint32_t size = 0;
+        serialize(size);
+        t.clear();
+
+        for (uint32_t i = 0; i < size; i++)
+        {
+            typename T::value_type item;
+            serialize(item);
+            t.insert(std::move(item));
+        }
+    }
+
+    template <typename First, typename Second>
+    void serialize(std::pair<const First, Second>& t)
+    {
+        serialize(*const_cast<First*>(&t.first));
+        serialize(t.second);
+    }
+
     template <typename T>                                                       // (8) подставляется, если:
     enable_if_t<std::is_fundamental<T>::value &&                                // – T – фундаментальный тип (арифметический, void, nullptr_t);
                 is_ostream<Stream>::value>                                      // и
@@ -157,8 +179,9 @@ private:
                 is_istream<Stream>::value>                                      // и
     serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – входной.
     {                                                                           // Возвращает void.
-        stream.read(reinterpret_cast<char*>(&t), sizeof(t));                    // Приводим указатель на t к указателю на char и записываем
-    }                                                                           // массив байт размера sizeof(t) по указателю на t
+        stream.read(const_cast<char*>(reinterpret_cast<const char*>(&t)),       // Приводим указатель на t к неконстантному указателю на char и
+                    sizeof(t));                                                 // записываем массив байт размера sizeof(t) по этому указателю
+    }
 
     void serialize(...)                                                         // (...) подставляется, если ни одна из вышеперечисленных
     {                                                                           // перегрузок не является допустимой.
