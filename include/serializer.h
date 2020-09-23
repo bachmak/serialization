@@ -43,6 +43,7 @@ private:
         Access::serialize(*this, t);                                            // Вызываем метод serialize у объекта через структуру Access
     }                                                                           // (на случай, если метод serialize приватный)
 
+
     template <typename T>                                                       // (2) подставляется, если:
     enable_if_t<is_iterable<T>::value &&                                        // – тип T поддерживает range-based for loop; и
                 has_size<T>::value   &&                                         // – имеет метод size() (все контейнеры, кроме forward_list); и
@@ -54,6 +55,7 @@ private:
         serialize_container(t);                                                 // сериализуем элементы контейнера.
     }
 
+
     template <typename T>                                                       // (3) подставляется, если:
     enable_if_t<is_std_forward_list<T>::value &&                                // – тип T – стандартный односвязный список 
                 is_ostream<Stream>::value>                                      // (т.к. у std::forward_list нет метода size()); и
@@ -63,6 +65,7 @@ private:
         serialize(size);                                                        // сериализуем его,
         serialize_container(t);                                                 // сериализуем элементы контейнера.
     }
+
 
     template <typename T>                                                       // (4) подставляется, если:
     enable_if_t<is_std_array<T>::value &&                                       // – тип T – стандартный статический массив;
@@ -88,6 +91,7 @@ private:
         }
     }
 
+
     template <typename T>                                                       // (5) подставляется, если:
     enable_if_t<(is_std_vector<T>::value  ||                                    // – тип T – стандартный последовательный контейнер, 
                  is_std_string<T>::value) &&                                    // хранящий данные в куче (вектор или строка);
@@ -103,6 +107,7 @@ private:
             serialize(item);
         }
     }
+
 
     template <typename T>                                                       // (6) подставляется, если:
     enable_if_t<(is_std_list<T>::value   ||                                     // – тип T – стандартный двусвязный список (лист или дек);
@@ -121,6 +126,7 @@ private:
             t.push_back(std::move(item));                                       // Перемещаем десериализованный элемент в конец списка
         }                                                                       // (чтобы избежать копирования).
     }
+
 
     template <typename T>                                                       // (7) подставляется, если:
     enable_if_t<is_std_forward_list<T>::value &&                                // – тип T – стандартный односвязный список;
@@ -141,6 +147,7 @@ private:
         t.reverse();                                                            // Инвертируем порядок элементов.
     }
 
+
     template <typename T>                                                       // (8) подставляется, если:
     enable_if_t<is_iterable<T>::value &&                                        // – тип T – ассоциативный контейнер (проверяем, поддерживается
                 has_insert<T>::value &&                                         // ли range-based for loop, и наличие метода insert());
@@ -159,6 +166,7 @@ private:
         }
     }
 
+
     template <typename First, typename Second>                                  // (9) подставляется для стандартных пар:
     void serialize(std::pair<const First, Second>& t)                           // первый тип константный, т.к. элементы std::map имеют тип
     {                                                                           // std::pair<const Key, Value> – иначе не подставляется.
@@ -166,7 +174,42 @@ private:
         serialize(t.second);                                                    // первое поле и просто сериализуем второе.
     }
 
+
     template <typename T>                                                       // (10) подставляется, если:
+    enable_if_t<std::is_pointer<T>::value &&                                    // – тип T – указатель;
+                is_ostream<Stream>::value>                                      // и
+    serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – выходной.
+    {
+        bool ptr_is_not_null = t ? true : false;                                // Создаем и инициализируем флаг для индикации того,
+        serialize(ptr_is_not_null);                                             // что указатель не пустой. Сериализуем его.
+
+        if (ptr_is_not_null)                                                    // Если указатель не пустой,
+        {
+            serialize(*t);                                                      // сериализуем его содержимое.
+        }
+    }
+
+
+    template <typename T>                                                       // (11) подставляется, если:
+    enable_if_t<std::is_pointer<T>::value &&                                    // – тип T – указатель;
+                is_istream<Stream>::value>                                      // и
+    serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – входной.
+    {
+        bool ptr_is_not_null;                                                   // Создаем флаг для индикации того, что указатель не пустой,
+        serialize(ptr_is_not_null);                                             // и десериализуем его.
+
+        if (ptr_is_not_null)                                                    // Если сериализованный указатель не был пуст:
+        {
+            t = new typename std::remove_pointer<T>::type;                      // выделяем новую память для указателя (remove_pointer позволяет
+            serialize(*t);                                                      // получить тип, на который указывает указатель);
+        }                                                                       // десериализуем содержимое в новый участок памяти.
+        else                                                                    // Иначе:
+        {   
+            t = nullptr;                                                        // инициализируем указатель нулевым указателем.
+        }
+    }
+
+    template <typename T>                                                       // (12) подставляется, если:
     enable_if_t<std::is_fundamental<T>::value &&                                // – T – фундаментальный тип (арифметический, void, nullptr_t);
                 is_ostream<Stream>::value>                                      // и
     serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – выходной.
@@ -174,7 +217,8 @@ private:
         stream.write(reinterpret_cast<const char*>(&t), sizeof(t));             // Приводим указатель на t к указателю на const char (сигнатура
     }                                                                           // метода ostream::write) и записываем массив байт размером
                                                                                 // sizeof(t) в поток
-    template <typename T>                                                       // (11) подставляется, если:
+
+    template <typename T>                                                       // (13) подставляется, если:
     enable_if_t<std::is_fundamental<T>::value &&                                // – T – фундаментальный тип;
                 is_istream<Stream>::value>                                      // и
     serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – входной.
@@ -183,10 +227,12 @@ private:
                     sizeof(t));                                                 // записываем массив байт размера sizeof(t) по этому указателю
     }
 
-    void serialize(...)                                                         // (12) подставляется, если ни одна из вышеперечисленных
+
+    void serialize(...)                                                         // (14) подставляется, если ни одна из вышеперечисленных
     {                                                                           // перегрузок не является допустимой.
         throw std::invalid_argument("Unsupported type. Serialization failed."); // Выбрасываем исключение с сообщением о том, что сериализация
     }                                                                           // для требуемого типа не поддерживается.
+
 
     template <typename T>                                                       // Метод для сериализации (только запись в поток) контейнера,
     void serialize_container(T& t)                                              // поддерживающего range-based for loop.
