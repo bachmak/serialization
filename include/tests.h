@@ -295,7 +295,9 @@ private:
 
 void TestBasicTypes();                                                          // функция для проверки сериализации базовых типов
 
-void TestPointers();                                                            // функция для проверки сериализации указателей
+void TestSingleValuePointers();                                                 // 
+                                                                                // функции для проверки сериализации указателей
+void TestMultipleValuePointers();                                               //  
 
 void TestReferences();                                                          // функция для проверки сериализации ссылок
 

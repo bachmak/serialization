@@ -16,8 +16,9 @@ void TestAll()                                                                  
     TestRunner tr;                                                              // Создаем объект класса TestRunner (см. test_runner.h).
     RUN_TEST(tr, TestPodClass);                                                 // С помощью макроса RUN_TEST передаем в TestRunner
     RUN_TEST(tr, TestBasicTypes);                                               // тестируемые функции (макрос вызывает метод RunTest у
-    RUN_TEST(tr, TestPointers);                                                 // объекта tr и передает в качестве аргументов тестируемую
-    RUN_TEST(tr, TestReferences);                                               // функцию и строку с названием этой функции).
+    RUN_TEST(tr, TestSingleValuePointers);                                      // объекта tr и передает в качестве аргументов тестируемую
+    RUN_TEST(tr, TestMultipleValuePointers);                                    // функцию и строку с названием этой функции).
+    RUN_TEST(tr, TestReferences);                                               // 
     RUN_TEST(tr, TestSequenceContainers);                                       //
     RUN_TEST(tr, TestAssociativeContainers);                                    //
     RUN_TEST(tr, TestSerializeAccessCombinations);                              //
@@ -101,7 +102,7 @@ void TestBasicTypes()                                                           
     }
 }
 
-void TestPointers()                                                             // указатели не должны сериализоваться
+void TestSingleValuePointers()                                                  // указатели должны сериализоваться успешно
 {
     double a = 293.32;
     int    b = 1;
@@ -114,6 +115,7 @@ void TestPointers()                                                             
     char*   ptr_c = &c; 
     bool*   ptr_d = &d; 
     float*  ptr_e = &e;
+    size_t* ptr_f = nullptr;
 
     size_t fail_counter = 0;
 
@@ -126,37 +128,110 @@ void TestPointers()                                                             
         SerializeAndCountFails(ptr_c, oa, fail_counter);
         SerializeAndCountFails(ptr_d, oa, fail_counter);
         SerializeAndCountFails(ptr_e, oa, fail_counter);
+        SerializeAndCountFails(ptr_f, oa, fail_counter);
     }
 
     {
         ifstream input("data.bin", ios_base::binary);
         Archive<ifstream> ia(input);
 
-        double *new_ptr_a = nullptr;
-        int    *new_ptr_b = nullptr;
-        char   *new_ptr_c = nullptr;
-        bool   *new_ptr_d = nullptr;
-        float  *new_ptr_e = nullptr;
+        double  new_a = 0.21;
+        int     new_b = 40923;
+        char    new_c = 'y';
+
+        double* new_ptr_a = &new_a;
+        int*    new_ptr_b = &new_b;
+        char*   new_ptr_c = &new_c;
+        bool*   new_ptr_d = nullptr;
+        float*  new_ptr_e = nullptr;
+        size_t* new_ptr_f = nullptr;
 
         SerializeAndCountFails(new_ptr_a, ia, fail_counter);
         SerializeAndCountFails(new_ptr_b, ia, fail_counter);
         SerializeAndCountFails(new_ptr_c, ia, fail_counter);
         SerializeAndCountFails(new_ptr_d, ia, fail_counter);
         SerializeAndCountFails(new_ptr_e, ia, fail_counter);
+        SerializeAndCountFails(new_ptr_f, ia, fail_counter);
 
-        ASSERT_NOT_EQUAL(new_ptr_a, ptr_a);
-        ASSERT_NOT_EQUAL(new_ptr_b, ptr_b);
-        ASSERT_NOT_EQUAL(new_ptr_c, ptr_c);
-        ASSERT_NOT_EQUAL(new_ptr_d, ptr_d);
-        ASSERT_NOT_EQUAL(new_ptr_e, ptr_e);
+        ASSERT_EQUAL(*new_ptr_a, a);
+        ASSERT_EQUAL(*new_ptr_b, b);
+        ASSERT_EQUAL(*new_ptr_c, c);
+        ASSERT_EQUAL(*new_ptr_d, d);
+        ASSERT_EQUAL(*new_ptr_e, e);
+        
+        ASSERT_TRUE(new_ptr_a);
+        ASSERT_TRUE(new_ptr_b);
+        ASSERT_TRUE(new_ptr_c);
+        ASSERT_TRUE(new_ptr_d);
+        ASSERT_TRUE(new_ptr_e);
+        ASSERT_FALSE(new_ptr_f);
 
-        ASSERT_FALSE(new_ptr_a);
-        ASSERT_FALSE(new_ptr_b);
-        ASSERT_FALSE(new_ptr_c);
-        ASSERT_FALSE(new_ptr_d);
-        ASSERT_FALSE(new_ptr_e);
+        ASSERT_FALSE(fail_counter);
+    }
+}
 
-        ASSERT_EQUAL(fail_counter, 10);
+void TestMultipleValuePointers()
+{
+    double a[5] = { 1.1, 2.2, 3.3, 4.4, 5.5 };
+    int    b[3] = { 0, 1, 2 };
+    bool   c[2] = { true, false };
+    
+    double* ptr_a = new double[5];
+    int*    ptr_b = new int[3];
+    bool*   ptr_c = new bool[2];
+
+    for (size_t i = 0; i < 5; i++)
+    {
+        ptr_a[i] = a[i];
+    }
+    
+    for (size_t i = 0; i < 3; i++)
+    {
+        ptr_b[i] = b[i];
+    }
+    
+    for (size_t i = 0; i < 2; i++)
+    {
+        ptr_c[i] = c[i];
+    }
+
+    size_t fail_counter = 0;
+
+    {
+        ofstream output("data.bin", ios_base::binary);
+        Archive<ofstream> oa(output);
+
+        SerializeAndCountFails(ptr_a, oa, fail_counter);
+        SerializeAndCountFails(ptr_b, oa, fail_counter);
+        SerializeAndCountFails(ptr_c, oa, fail_counter);
+    }
+
+    {
+        ifstream input("data.bin", ios_base::binary);
+        Archive<ifstream> ia(input);
+
+        double* new_ptr_a;
+        int*    new_ptr_b;
+        bool*   new_ptr_c;
+
+        SerializeAndCountFails(new_ptr_a, ia, fail_counter);
+        SerializeAndCountFails(new_ptr_b, ia, fail_counter);
+        SerializeAndCountFails(new_ptr_c, ia, fail_counter);
+
+        for (size_t i = 0; i < 5; i++)
+        {
+            ASSERT_EQUAL(new_ptr_a[i], a[i]);
+        }
+        
+        for (size_t i = 0; i < 3; i++)
+        {
+            ASSERT_EQUAL(new_ptr_b[i], b[i]);
+        }
+        
+        for (size_t i = 0; i < 2; i++)
+        {
+            ASSERT_EQUAL(new_ptr_c[i], c[i]);
+        }
     }
 }
 
