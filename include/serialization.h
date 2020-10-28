@@ -17,7 +17,7 @@ public:
                   is_istream<Stream>::value,                                    // инстанцирование может производиться только от стандартных
                   "Template argument must be a stream.");                       // потоков.
 
-    Archive(Stream &stream) : serializer(Serializer<Stream>(stream)) {}         // Конструктор с передачей потока для сериализации по ссылке
+    Archive(Stream& stream) : serializer(Serializer<Stream>(stream)) {}         // Конструктор с передачей потока для сериализации по ссылке
                                                                                 // и созданием сериализатора для этого потока.
     template <typename T, bool Enable=true>                                     // Оператор вывода в поток (сериализации) для lvalue-ссылок:
     typename std::enable_if<is_ostream<Stream>::value && Enable>::type          // доступен, только если шаблонный параметр является выходным
