@@ -286,6 +286,81 @@ private:
     }
 };
 
+class BaseClass
+{
+public:
+    BaseClass(int a, double b, char c)
+        : a(a), b(b), c(c) {}
+
+    BaseClass() = default;
+
+    bool operator==(const BaseClass& x) const
+    {
+        return (a == x.a && b == x.b && c == x.c);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const BaseClass& x)
+    {
+        return os << '{' << x.a << ", " << x.b << ", " << x.c << '}';
+    }
+
+protected:
+    template <typename Stream>
+    void serialize(Serializer<Stream> s)
+    {
+        s & a;
+        s & b;
+        s & c;
+    }
+
+private:
+    friend struct Access;
+
+    int a = 0;
+    double b = 0.0;
+    char c = 'a';
+};
+
+class DerivedClass : public BaseClass
+{
+public:
+    DerivedClass(BaseClass base, std::string a, std::vector<int> b)
+        : BaseClass(base), a(a), b(b) {}
+
+    DerivedClass(int base_a, double base_b, char base_c,
+                 std::string a, std::vector<int> b)
+        : DerivedClass({ base_a, base_b, base_c }, a, b) {}
+
+    DerivedClass() = default;
+
+    bool operator==(const DerivedClass& x) const
+    {
+        BaseClass const* base_x = dynamic_cast<BaseClass const*>(&x);
+
+        return (BaseClass::operator==(*base_x) && a == x.a && b == x.b);
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const DerivedClass& x)
+    {
+        return os << '{' << *dynamic_cast<BaseClass const*>(&x)
+                  << ", " << x.a << ", " << x.b << '}'; 
+    }
+
+private:
+    friend struct Access;
+
+    template <typename Stream>
+    void serialize(Serializer<Stream> s)
+    {
+        BaseClass::serialize(s);
+        s & a;
+        s & b;
+    }
+
+    std::string a = "aaa";
+    std::vector<int> b = { 0, 0, 0 }; 
+};
+
 /*  Тестовые функции для проверки корректности сериализации.
     Все функции определены в tests.cpp.
     Каждая из этих функций выбрасывает исключение, 
@@ -310,5 +385,7 @@ void TestSerializeAccessCombinations();                                         
 void TestPodClass();                                                            // функция для проверки сериализации класса с базовыми полями
 
 void TestClassWithNestedStruct();                                               // функция для проверки сериализации класса со структурой внутри
+
+void TestDerivedClass();                                                        // функция для проверки сериализации класса-наследника
 
 void TestAll();                                                                 // функция для запуска всех тестовых функций

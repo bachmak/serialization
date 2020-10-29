@@ -23,6 +23,7 @@ void TestAll()                                                                  
     RUN_TEST(tr, TestAssociativeContainers);                                    //
     RUN_TEST(tr, TestSerializeAccessCombinations);                              //
     RUN_TEST(tr, TestClassWithNestedStruct);                                    //
+    RUN_TEST(tr, TestDerivedClass);                                             //
 }
 
 template <typename T, typename Stream>                                          // Шаблонная функция, выполняющая попытку сериализации 
@@ -534,6 +535,36 @@ void TestClassWithNestedStruct()                                                
         SerializeAndCountFails(new_a, ia, fail_counter);
 
         ASSERT_EQUAL(new_a, a);
+        ASSERT_FALSE(fail_counter);
+    }
+}
+
+void TestDerivedClass()
+{
+    BaseClass base_a(100, 0.25, 'W');
+
+    DerivedClass derived_a(base_a, "test string", { 2, 4, 8, 10, 12 });
+
+    size_t fail_counter = 0;
+
+    {
+        ofstream output("data.bin", ios_base::binary);
+        Archive<ofstream> oa(output);
+
+        SerializeAndCountFails(derived_a, oa, fail_counter);
+    }
+
+    {
+        ifstream input("data.bin", ios_base::binary);
+        Archive<ifstream> ia(input);
+
+        DerivedClass new_derived_a;
+        SerializeAndCountFails(new_derived_a, ia, fail_counter);
+
+        const BaseClass& new_base_a =  *dynamic_cast<BaseClass const*>(&new_derived_a);
+        
+        ASSERT_EQUAL(new_base_a, base_a);
+        ASSERT_EQUAL(new_derived_a, derived_a);
         ASSERT_FALSE(fail_counter);
     }
 }
