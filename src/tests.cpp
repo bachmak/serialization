@@ -11,13 +11,24 @@
 
 using namespace std;
 
+#define CREATE_TEST_OUTPUT_ARCHIVE(x)                                           \
+    ofstream output("test.bin", ios_base::binary);                              \
+    Archive<ofstream> x(output);   
+
+#define CREATE_TEST_INPUT_ARCHIVE(x)                                            \
+    ifstream input("test.bin", ios_base::binary);                               \
+    Archive<ifstream> x(input);
+
 void TestAll()                                                                  // Функция для запуска всех тестов:
 {
     TestRunner tr;                                                              // Создаем объект класса TestRunner (см. test_runner.h).
     RUN_TEST(tr, TestPodClass);                                                 // С помощью макроса RUN_TEST передаем в TestRunner
     RUN_TEST(tr, TestBasicTypes);                                               // тестируемые функции (макрос вызывает метод RunTest у
-    RUN_TEST(tr, TestSingleValuePointers);                                      // объекта tr и передает в качестве аргументов тестируемую
-    RUN_TEST(tr, TestMultipleValuePointers);                                    // функцию и строку с названием этой функции).
+    RUN_TEST(tr, TestSingleStaticPointers);                                     // объекта tr и передает в качестве аргументов тестируемую
+    RUN_TEST(tr, TestSingleDynamicPointers);                                    // функцию и строку с названием этой функции).
+    RUN_TEST(tr, TestMultipleStaticPointers);                                   //
+    RUN_TEST(tr, TestSingleValuePointers);                                      // 
+    RUN_TEST(tr, TestMultipleValuePointers);                                    // 
     RUN_TEST(tr, TestReferences);                                               // 
     RUN_TEST(tr, TestSequenceContainers);                                       //
     RUN_TEST(tr, TestAssociativeContainers);                                    //
@@ -35,8 +46,9 @@ void SerializeAndCountFails(T& t,                                               
     {
         archive & t;                                                            // Выполняем сериализацию.
     }
-    catch(const invalid_argument& ex)                                           // Ловим исключение,
+    catch(const std::exception& ex)                                             // Ловим исключение,
     {
+        cerr << "Exception caught. " << ex.what() << endl;
         fail_counter++;                                                         // инкрементируем счетчик ошибок.
     }
 }
@@ -68,8 +80,7 @@ void TestBasicTypes()                                                           
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(a, oa, fail_counter);
         SerializeAndCountFails(b, oa, fail_counter);
@@ -79,8 +90,7 @@ void TestBasicTypes()                                                           
     }
 
     {
-        ifstream output("data.bin", ios_base::binary);
-        Archive<ifstream> ia(output);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         double new_a = 0.0;
         int    new_b = 0;
@@ -103,7 +113,234 @@ void TestBasicTypes()                                                           
     }
 }
 
-void TestSingleValuePointers()                                                  // указатели должны сериализоваться успешно
+char global_var;
+char new_global_var;
+
+void TestSingleStaticPointers()
+{
+    double stack_var = 293.32;
+    int static static_var = 1;
+    global_var = 'b';
+
+    Pointer<double> stack_var_ptr  = { &stack_var,  AllocType::Static };
+    Pointer<int>    static_var_ptr = { &static_var, AllocType::Static };
+    Pointer<char>   global_var_ptr = { &global_var, AllocType::Static };
+
+    size_t fail_counter = 0;
+
+    {
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
+
+        SerializeAndCountFails(stack_var_ptr,  oa, fail_counter);
+        SerializeAndCountFails(static_var_ptr, oa, fail_counter);
+        SerializeAndCountFails(global_var_ptr, oa, fail_counter);
+
+        SerializeAndCountFails(stack_var_ptr,  oa, fail_counter);
+        SerializeAndCountFails(static_var_ptr, oa, fail_counter);
+        SerializeAndCountFails(global_var_ptr, oa, fail_counter);
+    }
+
+    {
+        CREATE_TEST_INPUT_ARCHIVE(ia);
+
+        double new_stack_var = 0.0;
+        int static new_static_var = 0;
+        new_global_var = '0';
+
+        Pointer<double> empty_double_ptr;
+        Pointer<int>    empty_int_ptr;
+        Pointer<char>   empty_char_ptr;
+
+        Pointer<double> new_stack_var_ptr  = { &new_stack_var, AllocType::Static };
+        Pointer<int>    new_static_var_ptr = { &new_static_var, AllocType::Static };
+        Pointer<char>   new_global_var_ptr = { &new_global_var, AllocType::Static };
+
+        SerializeAndCountFails(empty_double_ptr, ia, fail_counter);
+        SerializeAndCountFails(empty_int_ptr,    ia, fail_counter);
+        SerializeAndCountFails(empty_char_ptr,   ia, fail_counter);
+
+        SerializeAndCountFails(new_stack_var_ptr,  ia, fail_counter);
+        SerializeAndCountFails(new_static_var_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_global_var_ptr, ia, fail_counter);
+
+        ASSERT_EQUAL(*empty_double_ptr, stack_var);   
+        ASSERT_EQUAL(*empty_int_ptr,    static_var);
+        ASSERT_EQUAL(*empty_char_ptr,   global_var);
+
+        ASSERT_EQUAL(*new_stack_var_ptr,  stack_var);
+        ASSERT_EQUAL(*new_static_var_ptr, static_var);
+        ASSERT_EQUAL(*new_global_var_ptr, global_var);
+
+        ASSERT_FALSE(fail_counter);     
+    }
+}
+
+void TestSingleDynamicPointers()
+{
+    double val_a = 23.90;
+    int    val_b = 2;
+    char   val_c = 'k';
+    string val_d = "test string";
+
+    double* a = new double { val_a };
+    int*    b = new int    { val_b };
+    char*   c = new char   { val_c };
+    string* d = new string { val_d };
+
+    Pointer<double> a_ptr = { a, AllocType::DynamicSingle };
+    Pointer<int>    b_ptr = { b, AllocType::DynamicSingle };
+    Pointer<char>   c_ptr = { c, AllocType::DynamicSingle };
+    Pointer<string> d_ptr = { d, AllocType::DynamicSingle };
+
+    size_t fail_counter = 0;
+
+    {
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
+
+        SerializeAndCountFails(a_ptr, oa, fail_counter);
+        SerializeAndCountFails(b_ptr, oa, fail_counter);
+        SerializeAndCountFails(c_ptr, oa, fail_counter);
+        SerializeAndCountFails(d_ptr, oa, fail_counter);
+
+        SerializeAndCountFails(a_ptr, oa, fail_counter);
+        SerializeAndCountFails(b_ptr, oa, fail_counter);
+        SerializeAndCountFails(c_ptr, oa, fail_counter);
+        SerializeAndCountFails(d_ptr, oa, fail_counter);
+    }
+
+    {
+        CREATE_TEST_INPUT_ARCHIVE(ia);
+
+        double* new_a = new double[100];
+        int*    new_b = &val_b;
+        char*   new_c = new char;
+        string* new_d = nullptr;
+
+        Pointer<double> empty_double_ptr;
+        Pointer<int>    empty_int_ptr;
+        Pointer<char>   empty_char_ptr;
+        Pointer<string> empty_string_ptr;
+
+        Pointer<double> new_a_ptr = { new_a, AllocType::DynamicMultiple };
+        Pointer<int>    new_b_ptr = { new_b, AllocType::Static };
+        Pointer<char>   new_c_ptr = { new_c, AllocType::DynamicSingle };
+        Pointer<string> new_d_ptr = { new_d, AllocType::Empty };
+
+        SerializeAndCountFails(empty_double_ptr, ia, fail_counter);
+        SerializeAndCountFails(empty_int_ptr,    ia, fail_counter);
+        SerializeAndCountFails(empty_char_ptr,   ia, fail_counter);
+        SerializeAndCountFails(empty_string_ptr, ia, fail_counter);
+
+        SerializeAndCountFails(new_a_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_b_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_c_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_d_ptr, ia, fail_counter);
+
+        ASSERT_EQUAL(*empty_double_ptr, val_a);
+        ASSERT_EQUAL(*empty_int_ptr,    val_b);
+        ASSERT_EQUAL(*empty_char_ptr,   val_c);
+        ASSERT_EQUAL(*empty_string_ptr, val_d);
+
+        ASSERT_EQUAL(*new_a_ptr, val_a);
+        ASSERT_EQUAL(*new_b_ptr, val_b);
+        ASSERT_EQUAL(*new_c_ptr, val_c);
+        ASSERT_EQUAL(*new_d_ptr, val_d);
+
+        ASSERT_FALSE(fail_counter);
+    }
+}
+
+char arr_d[5] = { 'a', 'b', 'c', 'd', 'e' };
+char new_arr_d[5];
+
+void TestMultipleStaticPointers()
+{
+    double     arr_a[2] = { 1.1, 2.2 };
+    int static arr_b[3] = { 1, 2, 3 };
+    string     arr_c[4] = { "test", "array", "of", "string" };
+
+    size_t a_size = 2;
+    size_t b_size = 3;
+    size_t c_size = 4;
+    size_t d_size = 5;
+
+    Pointer<double> arr_a_ptr = { arr_a, AllocType::Static, 2 };
+    Pointer<int>    arr_b_ptr = { arr_b, AllocType::Static, 3 };
+    Pointer<string> arr_c_ptr = { arr_c, AllocType::Static, 4 };
+    Pointer<char>   arr_d_ptr = { arr_d, AllocType::Static, 5 };
+
+    size_t fail_counter = 0;
+
+    {
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
+
+        SerializeAndCountFails(arr_a_ptr, oa, fail_counter);
+        SerializeAndCountFails(arr_b_ptr, oa, fail_counter);
+        SerializeAndCountFails(arr_c_ptr, oa, fail_counter);
+        SerializeAndCountFails(arr_d_ptr, oa, fail_counter);
+
+        SerializeAndCountFails(arr_a_ptr, oa, fail_counter);
+        SerializeAndCountFails(arr_b_ptr, oa, fail_counter);
+        SerializeAndCountFails(arr_c_ptr, oa, fail_counter);
+        SerializeAndCountFails(arr_d_ptr, oa, fail_counter);
+    }
+
+    {
+        CREATE_TEST_INPUT_ARCHIVE(ia);
+
+        double* new_arr_a = new double[1000];
+        int*    new_arr_b = new int;
+        string* new_arr_c = nullptr;
+
+        Pointer<double> empty_double_ptr;
+        Pointer<int>    empty_int_ptr;
+        Pointer<string> empty_string_ptr;
+        Pointer<char>   empty_char_ptr;
+
+        Pointer<double> new_arr_a_ptr = { new_arr_a, AllocType::DynamicMultiple, 1000 };
+        Pointer<int>    new_arr_b_ptr = { new_arr_b, AllocType::DynamicSingle, 1 };
+        Pointer<string> new_arr_c_ptr = { new_arr_c, AllocType::Empty, 0 };
+        Pointer<char>   new_arr_d_ptr = { new_arr_d, AllocType::Static, 5 };
+
+        SerializeAndCountFails(empty_double_ptr, ia, fail_counter);
+        SerializeAndCountFails(empty_int_ptr,    ia, fail_counter);
+        SerializeAndCountFails(empty_string_ptr, ia, fail_counter);
+        SerializeAndCountFails(empty_char_ptr,   ia, fail_counter);
+
+        SerializeAndCountFails(new_arr_a_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_arr_b_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_arr_c_ptr, ia, fail_counter);
+        SerializeAndCountFails(new_arr_d_ptr, ia, fail_counter);
+
+        for (size_t i = 0; i < a_size; i++)
+        {
+            ASSERT_EQUAL(empty_double_ptr[i], arr_a[i]);
+            ASSERT_EQUAL(new_arr_a_ptr[i],    arr_a[i]);
+        }
+
+        for (size_t i = 0; i < b_size; i++)
+        {
+            ASSERT_EQUAL(empty_int_ptr[i], arr_b[i]);
+            ASSERT_EQUAL(new_arr_b_ptr[i], arr_b[i]);
+        }
+        
+        for (size_t i = 0; i < c_size; i++)
+        {
+            ASSERT_EQUAL(empty_string_ptr[i], arr_c[i]);
+            ASSERT_EQUAL(new_arr_c_ptr[i],    arr_c[i]);
+        }
+
+        for (size_t i = 0; i < d_size; i++)
+        {
+            ASSERT_EQUAL(empty_char_ptr[i], arr_d[i]);
+            ASSERT_EQUAL(new_arr_d_ptr[i],  arr_d[i]);
+        }
+
+        ASSERT_FALSE(fail_counter);
+    }
+}
+
+void TestSingleValuePointers()                                                  // указатели на одиночные стековые переменные
 {
     double a = 293.32;
     int    b = 1;
@@ -111,18 +348,17 @@ void TestSingleValuePointers()                                                  
     bool   d = true;
     float  e = 2.54;
 
-    double* ptr_a = &a; 
-    int*    ptr_b = &b; 
-    char*   ptr_c = &c; 
-    bool*   ptr_d = &d; 
-    float*  ptr_e = &e;
-    size_t* ptr_f = nullptr;
+    Pointer<double> ptr_a(&a, AllocType::Static); 
+    Pointer<int>    ptr_b(&b, AllocType::Static); 
+    Pointer<char>   ptr_c(&c, AllocType::Static); 
+    Pointer<bool>   ptr_d(&d, AllocType::Static); 
+    Pointer<float>  ptr_e(&e, AllocType::Static);
+    Pointer<size_t> ptr_f;
 
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(ptr_a, oa, fail_counter);
         SerializeAndCountFails(ptr_b, oa, fail_counter);
@@ -133,19 +369,18 @@ void TestSingleValuePointers()                                                  
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         double  new_a = 0.21;
         int     new_b = 40923;
         char    new_c = 'y';
 
-        double* new_ptr_a = &new_a;
-        int*    new_ptr_b = &new_b;
-        char*   new_ptr_c = &new_c;
-        bool*   new_ptr_d = nullptr;
-        float*  new_ptr_e = nullptr;
-        size_t* new_ptr_f = nullptr;
+        Pointer<double> new_ptr_a(&new_a, AllocType::Static);
+        Pointer<int>    new_ptr_b(&new_b, AllocType::Static);
+        Pointer<char>   new_ptr_c(&new_c, AllocType::Static);
+        Pointer<bool>   new_ptr_d;
+        Pointer<float>  new_ptr_e;
+        Pointer<size_t> new_ptr_f;
 
         SerializeAndCountFails(new_ptr_a, ia, fail_counter);
         SerializeAndCountFails(new_ptr_b, ia, fail_counter);
@@ -154,53 +389,56 @@ void TestSingleValuePointers()                                                  
         SerializeAndCountFails(new_ptr_e, ia, fail_counter);
         SerializeAndCountFails(new_ptr_f, ia, fail_counter);
 
-        ASSERT_EQUAL(*new_ptr_a, a);
-        ASSERT_EQUAL(*new_ptr_b, b);
-        ASSERT_EQUAL(*new_ptr_c, c);
-        ASSERT_EQUAL(*new_ptr_d, d);
-        ASSERT_EQUAL(*new_ptr_e, e);
+        ASSERT_EQUAL(*new_ptr_a.ptr, a);
+        ASSERT_EQUAL(*new_ptr_b.ptr, b);
+        ASSERT_EQUAL(*new_ptr_c.ptr, c);
+        ASSERT_EQUAL(*new_ptr_d.ptr, d);
+        ASSERT_EQUAL(*new_ptr_e.ptr, e);
         
-        ASSERT_TRUE(new_ptr_a);
-        ASSERT_TRUE(new_ptr_b);
-        ASSERT_TRUE(new_ptr_c);
-        ASSERT_TRUE(new_ptr_d);
-        ASSERT_TRUE(new_ptr_e);
-        ASSERT_FALSE(new_ptr_f);
+        ASSERT_TRUE(new_ptr_a.ptr);
+        ASSERT_TRUE(new_ptr_b.ptr);
+        ASSERT_TRUE(new_ptr_c.ptr);
+        ASSERT_TRUE(new_ptr_d.ptr);
+        ASSERT_TRUE(new_ptr_e.ptr);
+        ASSERT_FALSE(new_ptr_f.ptr);
 
         ASSERT_FALSE(fail_counter);
     }
 }
 
-void TestMultipleValuePointers()
+void TestMultipleValuePointers()                                                // указатели на массивы в куче
 {
-    double a[5] = { 1.1, 2.2, 3.3, 4.4, 5.5 };
-    int    b[3] = { 0, 1, 2 };
-    bool   c[2] = { true, false };
+    double arr_a[5] = { 1.1, 2.2, 3.3, 4.4, 5.5 };
+    int    arr_b[3] = { 0, 1, 2 };
+    bool   arr_c[2] = { true, false };
     
-    double* ptr_a = new double[5];
-    int*    ptr_b = new int[3];
-    bool*   ptr_c = new bool[2];
+    double* a = new double[5];
+    int*    b = new int[3];
+    bool*   c = new bool[2];
 
     for (size_t i = 0; i < 5; i++)
     {
-        ptr_a[i] = a[i];
+        a[i] = arr_a[i];
     }
     
     for (size_t i = 0; i < 3; i++)
     {
-        ptr_b[i] = b[i];
+        b[i] = arr_b[i];
     }
     
     for (size_t i = 0; i < 2; i++)
     {
-        ptr_c[i] = c[i];
+        c[i] = arr_c[i];
     }
+
+    Pointer<double> ptr_a(a, AllocType::DynamicMultiple, 5);
+    Pointer<int>    ptr_b(b, AllocType::DynamicMultiple, 3);
+    Pointer<bool>   ptr_c(c, AllocType::DynamicMultiple, 2);
 
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(ptr_a, oa, fail_counter);
         SerializeAndCountFails(ptr_b, oa, fail_counter);
@@ -208,12 +446,11 @@ void TestMultipleValuePointers()
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
-        double* new_ptr_a;
-        int*    new_ptr_b;
-        bool*   new_ptr_c;
+        Pointer<double> new_ptr_a;
+        Pointer<int>    new_ptr_b;
+        Pointer<bool>   new_ptr_c;
 
         SerializeAndCountFails(new_ptr_a, ia, fail_counter);
         SerializeAndCountFails(new_ptr_b, ia, fail_counter);
@@ -221,22 +458,22 @@ void TestMultipleValuePointers()
 
         for (size_t i = 0; i < 5; i++)
         {
-            ASSERT_EQUAL(new_ptr_a[i], a[i]);
+            ASSERT_EQUAL(new_ptr_a.ptr[i], a[i]);
         }
         
         for (size_t i = 0; i < 3; i++)
         {
-            ASSERT_EQUAL(new_ptr_b[i], b[i]);
+            ASSERT_EQUAL(new_ptr_b.ptr[i], b[i]);
         }
         
         for (size_t i = 0; i < 2; i++)
         {
-            ASSERT_EQUAL(new_ptr_c[i], c[i]);
+            ASSERT_EQUAL(new_ptr_c.ptr[i], c[i]);
         }
     }
 }
 
-void TestReferences()                                                           // ссылки должны сериализоваться успешно
+void TestReferences()                                                           // ссылки
 {
     double a = 293.32;
     int    b = 1;
@@ -253,8 +490,7 @@ void TestReferences()                                                           
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(ref_a, oa, fail_counter);
         SerializeAndCountFails(ref_b, oa, fail_counter);
@@ -264,8 +500,7 @@ void TestReferences()                                                           
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         double new_a = 0.0;
         int    new_b = 0;
@@ -295,8 +530,8 @@ void TestReferences()                                                           
     }
 }
 
-void TestSequenceContainers()                                                   // последовательные контейнеры должны сериализоваться успешно
-{                                                                               // кроме статических массивов разных размеров
+void TestSequenceContainers()                                                   // последовательные контейнеры
+{
     vector<list<int>>            a = {{ 1, 2, 3, 4, 5 },
                                       { 897, 231 },
                                       { 0, 0, 0 },
@@ -318,8 +553,7 @@ void TestSequenceContainers()                                                   
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
         
         SerializeAndCountFails(a, oa, fail_counter);
         SerializeAndCountFails(b, oa, fail_counter);
@@ -329,8 +563,7 @@ void TestSequenceContainers()                                                   
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         vector<list<int>>            new_a;
         list<deque<string>>          new_b;
@@ -353,7 +586,7 @@ void TestSequenceContainers()                                                   
     }
 }
 
-void TestAssociativeContainers()                                                // ассоциативные контейнеры должны сериализоваться успешно
+void TestAssociativeContainers()                                                // ассоциативные контейнеры
 {
     set<int>                     a = { 1, 3, 2, 6, 4, 5 };
     
@@ -385,8 +618,7 @@ void TestAssociativeContainers()                                                
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(a, oa, fail_counter);
         SerializeAndCountFails(b, oa, fail_counter);
@@ -399,8 +631,7 @@ void TestAssociativeContainers()                                                
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         set<int>                     new_a;
         multiset<int>                new_b;
@@ -433,7 +664,7 @@ void TestAssociativeContainers()                                                
     }
 }
 
-void TestSerializeAccessCombinations()                                          // классы должны сериализоваться при наличии serialize и Access
+void TestSerializeAccessCombinations()                                          // классы с различными комбинациями serialize и Access
 {
     NotSerializableWithFriendAccess       a(10, 20);
     NotSerializableWithoutFriendAccess    b(30, 40);
@@ -443,8 +674,7 @@ void TestSerializeAccessCombinations()                                          
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(a, oa, fail_counter);
         SerializeAndCountFails(b, oa, fail_counter);
@@ -454,8 +684,7 @@ void TestSerializeAccessCombinations()                                          
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         NotSerializableWithFriendAccess       new_a;
         NotSerializableWithoutFriendAccess    new_b;
@@ -480,21 +709,19 @@ void TestSerializeAccessCombinations()                                          
     }
 }
 
-void TestPodClass()                                                             // класс с базовыми типами должен сериализоваться успешно
+void TestPodClass()                                                             // класс с полями базовых типов 
 {
     PodClass a(-1, 'b', 2, 500);
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(a, oa, fail_counter);
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         PodClass new_a;
         SerializeAndCountFails(new_a, ia, fail_counter);
@@ -504,7 +731,7 @@ void TestPodClass()                                                             
     }
 }
 
-void TestClassWithNestedStruct()                                                // класс с вложенной структурой должен сериализоваться успешно
+void TestClassWithNestedStruct()                                                // класс с вложенной структурой
 {
     ClassWithNestedStruct a(1,
                             { 20, 30, 40 },
@@ -521,15 +748,12 @@ void TestClassWithNestedStruct()                                                
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
-
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
         SerializeAndCountFails(a, oa, fail_counter);
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         ClassWithNestedStruct new_a;
         SerializeAndCountFails(new_a, ia, fail_counter);
@@ -539,29 +763,26 @@ void TestClassWithNestedStruct()                                                
     }
 }
 
-void TestDerivedClass()
+void TestDerivedClass()                                                         // базовый и производный класс
 {
     BaseClass base_a(100, 0.25, 'W');
-
     DerivedClass derived_a(base_a, "test string", { 2, 4, 8, 10, 12 });
-
     size_t fail_counter = 0;
 
     {
-        ofstream output("data.bin", ios_base::binary);
-        Archive<ofstream> oa(output);
+        CREATE_TEST_OUTPUT_ARCHIVE(oa);
 
         SerializeAndCountFails(derived_a, oa, fail_counter);
     }
 
     {
-        ifstream input("data.bin", ios_base::binary);
-        Archive<ifstream> ia(input);
+        CREATE_TEST_INPUT_ARCHIVE(ia);
 
         DerivedClass new_derived_a;
         SerializeAndCountFails(new_derived_a, ia, fail_counter);
 
-        const BaseClass& new_base_a =  *dynamic_cast<BaseClass const*>(&new_derived_a);
+        const BaseClass& new_base_a =
+            *dynamic_cast<BaseClass const*>(&new_derived_a);
         
         ASSERT_EQUAL(new_base_a, base_a);
         ASSERT_EQUAL(new_derived_a, derived_a);

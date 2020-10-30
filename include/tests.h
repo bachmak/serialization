@@ -370,8 +370,14 @@ private:
 
 void TestBasicTypes();                                                          // функция для проверки сериализации базовых типов
 
+void TestSingleStaticPointers();                                                //
+                                                                                //
+void TestSingleDynamicPointers();                                               //
+                                                                                //
+void TestMultipleStaticPointers();                                              // функции для проверки сериализации указателей
+                                                                                // 
 void TestSingleValuePointers();                                                 // 
-                                                                                // функции для проверки сериализации указателей
+                                                                                // 
 void TestMultipleValuePointers();                                               //  
 
 void TestReferences();                                                          // функция для проверки сериализации ссылок
