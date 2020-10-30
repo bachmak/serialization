@@ -32,6 +32,48 @@ struct Access
     };                                                                          // подстановка не сработала).
 };
 
+enum class AllocType                                                            // Перечисление для указания типа выделенной для указателя памяти:
+{
+    Empty,                                                                      // - пустой указатель;
+    Static,                                                                     // - память выделена статически (данные на стеке или в глобальной области);
+    DynamicSingle,                                                              // - память выделена в куче с помощью оператора new;
+    DynamicMultiple                                                             // - память выделена в куче с помощью оператора new[].
+};
+
+template <typename T>                                                           // Структура-обертка над указателем для сериализации
+struct Pointer
+{
+    Pointer(T* ptr, AllocType alloc_type, size_t size = 1)                      // Параметрический конструктор
+        : ptr(ptr), alloc_type(alloc_type), size(size) {}
+
+    Pointer() = default;                                                        // Конструктор умолчания
+
+    T& operator*()                                                              // Операторы разыменования
+    {
+        return *ptr;
+    }
+
+    const T& operator*() const                                                  //
+    {
+        return *ptr;
+    }
+
+    T& operator[](size_t index)                                                 // Операторы обращения к элементу
+    {
+        return ptr[index];
+    }
+
+
+    const T& operator[](size_t index) const                                     //
+    {
+        return ptr[index];
+    }
+                                                                                // Поля:
+    T* ptr = nullptr;                                                           // - сырой указатель;
+    AllocType alloc_type = AllocType::Empty;                                    // - тип выделенной под указатель памяти;
+    size_t size = 0;                                                            // - размер массива данных указателя.
+};
+
 template <typename T>                                                           // Непосредственно проверка на наличие метода serialize:
 using is_serializable = decltype(Access::Serializable::is_serializable<T>(0));  // 0 в параметре – для попытки подстановки функции с более
                                                                                 // высоким приоритетом – is_serializable(int).

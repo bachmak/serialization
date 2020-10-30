@@ -175,41 +175,91 @@ private:
     }
 
 
-    template <typename T>                                                       // (10) подставляется, если:
-    enable_if_t<std::is_pointer<T>::value &&                                    // – тип T – указатель;
-                is_ostream<Stream>::value>                                      // и
-    serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – выходной.
+    template <typename T, bool Enable=true>                                     // (10) подставляется для служебной структуры Pointer, если
+    enable_if_t<is_ostream<Stream>::value && Enable>                            // поток, которым инстанцирован шаблон класса - выходной.
+    serialize(Pointer<T>& t)                                                    // Сериализует содержимое указателя. Возвращает void.
     {
-        bool ptr_is_not_null = t ? true : false;                                // Создаем и инициализируем флаг для индикации того,
-        serialize(ptr_is_not_null);                                             // что указатель не пустой. Сериализуем его.
+        bool ptr_is_null = t.ptr ? false : true;                                // Создаем и инициализируем переменную-индикатор пустого указателя.
+        serialize(ptr_is_null);                                                 // Сериализуем эту переменную.
 
-        if (ptr_is_not_null)                                                    // Если указатель не пустой,
+        if (!ptr_is_null)                                                       // Если указатель ненулевой:
         {
-            serialize(*t);                                                      // сериализуем его содержимое.
+            serialize(t.size);                                                  // Сериализуем размер массива данных указателя.
+            for (size_t i = 0; i < t.size; i++)                                 // Поэлементно сериализуем массив данных.
+            {
+                serialize(t.ptr[i]);                                            //
+            }
         }
     }
 
-
-    template <typename T>                                                       // (11) подставляется, если:
-    enable_if_t<std::is_pointer<T>::value &&                                    // – тип T – указатель;
-                is_istream<Stream>::value>                                      // и
-    serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – входной.
+    template <typename T, bool Enable=true>                                     // (11) подставляется для служебной структуры Pointer, если
+    enable_if_t<is_istream<Stream>::value && Enable>                            // поток, которым инстанцирован шаблон класса - входной.
+    serialize(Pointer<T>& t)                                                    // Десериализует содержимое указателя. Возвращает void.
     {
-        bool ptr_is_not_null;                                                   // Создаем флаг для индикации того, что указатель не пустой,
-        serialize(ptr_is_not_null);                                             // и десериализуем его.
+        switch (t.alloc_type)                                                   // В зависимости от того, как была выделена память для
+        {                                                                       // текущего указателя:
+        case AllocType::DynamicSingle:                                          // Если для одного элемента в куче (оператор new),
+            delete t.ptr;                                                       // освобождаем память с помощью delete.
+            break;
+        
+        case AllocType::DynamicMultiple:                                        // Если для нескольких элементов в куче (оператор new[]),
+            delete[] t.ptr;                                                     // освобождаем память с помощью delete[].
+            break;
 
-        if (ptr_is_not_null)                                                    // Если сериализованный указатель не был пуст:
+        default:                                                                // Если указатель нулевой или указывает на данные не в куче,
+            break;                                                              // освобождать память не нужно.
+        }
+
+        bool ptr_is_null;                                                       // Создаем переменную-индикатор нулевого сериализованного указателя,
+        serialize(ptr_is_null);                                                 // десериализуем ее.
+
+        if (ptr_is_null)                                                        // Если был сериализован нулевой указатель:
         {
-            t = new typename std::remove_pointer<T>::type;                      // выделяем новую память для указателя (remove_pointer позволяет
-            serialize(*t);                                                      // получить тип, на который указывает указатель);
-        }                                                                       // десериализуем содержимое в новый участок памяти.
-        else                                                                    // Иначе:
-        {   
-            t = nullptr;                                                        // инициализируем указатель нулевым указателем.
+            t.size = 0;                                                         // размер массива данных указателя - нулевой.
+        }
+                                                                                // Если был сериализован ненулевой указатель,
+        serialize(t.size);                                                      // сериализуем размер данных массива данных
+
+        if (!t.size)                                                            // Если размер массива данных нулевой:
+        {
+            t.ptr = nullptr;                                                    // инициализируем текущий указатель нулевым указателем,
+            t.alloc_type = AllocType::Empty;                                    // вариает типа выделенной памяти - пустой указатель.
+            return;                                                             // Выходим из функции.
+        }
+
+        if (!t.ptr)                                                             // Если указатель пустой:
+        {
+            if (t.size == 1)                                                    // если размер массива данных единичный:
+            {
+                t.ptr = new typename std::remove_pointer<T>::type;              // выделяем память под один элемент,
+                t.alloc_type = AllocType::DynamicSingle;                        // задаем нужную опцию - указатель на один элемент в куче;
+            }
+            else                                                                // иначе размер массива данных больше единицы:
+            {
+                t.ptr = new typename std::remove_pointer<T>::type[t.size];      // выделяем память под необходимое количество элементов,
+                t.alloc_type = AllocType::DynamicMultiple;                      // задаем нужную опцию - указатель на несколько элементов в куче.
+            }
+        }
+
+        for (size_t i = 0; i < t.size; i++)                                     // Поэлементно десериализуем массив данных.
+        {
+            serialize(t.ptr[i]);                                                //
         }
     }
+
 
     template <typename T>                                                       // (12) подставляется, если:
+    enable_if_t<std::is_pointer<T>::value>                                      // – тип T – указатель.
+    serialize(T& t)                                                             // Выбрасывает исключение независимо от направления сериализации.
+    {
+        std::ostringstream os;                                                  // Формируем сообщение об ошибке
+        os << "Direct pointer serialization not supported. "                    //
+           << "Use 'Pointer' struct instead. Serialization failed.";            //
+        throw std::invalid_argument(os.str());                                  // и выбрасываем исключение.
+    }
+
+
+    template <typename T>                                                       // (13) подставляется, если:
     enable_if_t<std::is_fundamental<T>::value &&                                // – T – фундаментальный тип (арифметический, void, nullptr_t);
                 is_ostream<Stream>::value>                                      // и
     serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – выходной.
@@ -218,7 +268,7 @@ private:
     }                                                                           // метода ostream::write) и записываем массив байт размером
                                                                                 // sizeof(t) в поток
 
-    template <typename T>                                                       // (13) подставляется, если:
+    template <typename T>                                                       // (14) подставляется, если:
     enable_if_t<std::is_fundamental<T>::value &&                                // – T – фундаментальный тип;
                 is_istream<Stream>::value>                                      // и
     serialize(T& t)                                                             // – поток, которым инстанцирован шаблон класса – входной.
@@ -228,7 +278,7 @@ private:
     }
 
 
-    void serialize(...)                                                         // (14) подставляется, если ни одна из вышеперечисленных
+    void serialize(...)                                                         // (15) подставляется, если ни одна из вышеперечисленных
     {                                                                           // перегрузок не является допустимой.
         throw std::invalid_argument("Unsupported type. Serialization failed."); // Выбрасываем исключение с сообщением о том, что сериализация
     }                                                                           // для требуемого типа не поддерживается.
